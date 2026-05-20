@@ -3,51 +3,147 @@ import { sleep, mapFuel, mapGearbox } from "./json-ld-dealer";
 
 // AutoScout24.fr — ~2M annonces européennes.
 // Stratégie : recherches /lst/{make}/{model}?fregfrom=YYYY&fregto=YYYY → __NEXT_DATA__.
-// On cible par année pour avoir l'info year directement, sans fetch individuel.
-// robots.txt : Crawl-delay implicite → on respecte AS24_CRAWL_DELAY_MS.
+// Pages 1-3 récupérées en parallèle par combo pour tripler le volume.
+// robots.txt : Crawl-delay implicite → configurable via AS24_CRAWL_DELAY_MS.
 
 const UA = process.env.SCRAPER_USER_AGENT ?? "Mozilla/5.0 (compatible; VO-Radar/0.1)";
-const CRAWL_DELAY = Number(process.env.AS24_CRAWL_DELAY_MS ?? 3500);
+const CRAWL_DELAY = Number(process.env.AS24_CRAWL_DELAY_MS ?? 1200);
 const BASE = "https://www.autoscout24.fr";
+const PAGES_PER_COMBO = Number(process.env.AS24_PAGES ?? 3);
 
-// Top makes/models France
+// ~80 marques/modèles les plus vendus en France + véhicules utilitaires légers
 const MAKES_MODELS: { make: string; model: string }[] = [
+  // Renault
   { make: "renault", model: "clio" },
   { make: "renault", model: "megane" },
   { make: "renault", model: "captur" },
   { make: "renault", model: "kadjar" },
+  { make: "renault", model: "scenic" },
+  { make: "renault", model: "talisman" },
+  { make: "renault", model: "koleos" },
+  { make: "renault", model: "twingo" },
+  { make: "renault", model: "zoe" },
+  { make: "renault", model: "kangoo" },
+  // Peugeot
   { make: "peugeot", model: "208" },
   { make: "peugeot", model: "2008" },
   { make: "peugeot", model: "308" },
   { make: "peugeot", model: "3008" },
+  { make: "peugeot", model: "5008" },
+  { make: "peugeot", model: "508" },
+  { make: "peugeot", model: "partner" },
+  { make: "peugeot", model: "rifter" },
+  // Citroën
+  { make: "citroen", model: "c3" },
+  { make: "citroen", model: "berlingo" },
+  { make: "citroen", model: "c4" },
+  { make: "citroen", model: "c5-aircross" },
+  { make: "citroen", model: "c4-picasso" },
+  { make: "citroen", model: "ds3" },
+  // Volkswagen
   { make: "volkswagen", model: "golf" },
   { make: "volkswagen", model: "polo" },
   { make: "volkswagen", model: "tiguan" },
-  { make: "dacia", model: "sandero" },
-  { make: "dacia", model: "duster" },
-  { make: "citroen", model: "c3" },
-  { make: "citroen", model: "berlingo" },
-  { make: "toyota", model: "yaris" },
+  { make: "volkswagen", model: "passat" },
+  { make: "volkswagen", model: "t-roc" },
+  { make: "volkswagen", model: "t-cross" },
+  { make: "volkswagen", model: "touareg" },
+  // BMW
   { make: "bmw", model: "serie-1" },
+  { make: "bmw", model: "serie-2" },
   { make: "bmw", model: "serie-3" },
+  { make: "bmw", model: "serie-5" },
+  { make: "bmw", model: "x1" },
   { make: "bmw", model: "x3" },
+  { make: "bmw", model: "x5" },
+  // Mercedes-Benz
   { make: "mercedes-benz", model: "classe-a" },
+  { make: "mercedes-benz", model: "classe-b" },
   { make: "mercedes-benz", model: "classe-c" },
+  { make: "mercedes-benz", model: "classe-e" },
+  { make: "mercedes-benz", model: "glc" },
+  { make: "mercedes-benz", model: "gla" },
+  { make: "mercedes-benz", model: "glb" },
+  { make: "mercedes-benz", model: "vito" },
+  // Audi
+  { make: "audi", model: "a1" },
   { make: "audi", model: "a3" },
+  { make: "audi", model: "a4" },
+  { make: "audi", model: "a6" },
   { make: "audi", model: "q3" },
+  { make: "audi", model: "q5" },
+  // Ford
+  { make: "ford", model: "fiesta" },
   { make: "ford", model: "focus" },
+  { make: "ford", model: "puma" },
+  { make: "ford", model: "kuga" },
+  { make: "ford", model: "transit-custom" },
+  // Opel
   { make: "opel", model: "corsa" },
+  { make: "opel", model: "astra" },
+  { make: "opel", model: "mokka" },
+  { make: "opel", model: "grandland" },
+  { make: "opel", model: "insignia" },
+  // SEAT / Cupra
   { make: "seat", model: "ibiza" },
   { make: "seat", model: "leon" },
+  { make: "seat", model: "ateca" },
+  { make: "cupra", model: "formentor" },
+  // Škoda
+  { make: "skoda", model: "fabia" },
   { make: "skoda", model: "octavia" },
+  { make: "skoda", model: "karoq" },
+  { make: "skoda", model: "kodiaq" },
+  // Nissan
+  { make: "nissan", model: "micra" },
+  { make: "nissan", model: "juke" },
   { make: "nissan", model: "qashqai" },
+  { make: "nissan", model: "leaf" },
+  // Hyundai
+  { make: "hyundai", model: "i20" },
+  { make: "hyundai", model: "i30" },
   { make: "hyundai", model: "tucson" },
+  { make: "hyundai", model: "kona" },
+  // Kia
+  { make: "kia", model: "rio" },
+  { make: "kia", model: "ceed" },
   { make: "kia", model: "sportage" },
-  { make: "mercedes-benz", model: "vito" },
+  { make: "kia", model: "niro" },
+  // Toyota
+  { make: "toyota", model: "aygo" },
+  { make: "toyota", model: "yaris" },
+  { make: "toyota", model: "c-hr" },
+  { make: "toyota", model: "corolla" },
+  { make: "toyota", model: "rav4" },
+  // Dacia
+  { make: "dacia", model: "sandero" },
+  { make: "dacia", model: "logan" },
+  { make: "dacia", model: "duster" },
+  { make: "dacia", model: "spring" },
+  { make: "dacia", model: "jogger" },
+  // Fiat
+  { make: "fiat", model: "500" },
+  { make: "fiat", model: "panda" },
+  { make: "fiat", model: "tipo" },
+  { make: "fiat", model: "ducato" },
+  // Alfa Romeo
+  { make: "alfa-romeo", model: "giulietta" },
+  { make: "alfa-romeo", model: "stelvio" },
+  { make: "alfa-romeo", model: "tonale" },
+  // Volvo
+  { make: "volvo", model: "v40" },
+  { make: "volvo", model: "xc40" },
+  { make: "volvo", model: "xc60" },
+  // Mazda
+  { make: "mazda", model: "cx-5" },
+  { make: "mazda", model: "mazda3" },
+  // Suzuki
+  { make: "suzuki", model: "vitara" },
+  { make: "suzuki", model: "swift" },
 ];
 
-// Years to target — recent years only for relevance
-const YEARS = [2019, 2020, 2021, 2022, 2023, 2024];
+// Années ciblées — plage élargie 2015-2024 pour plus de volume
+const YEARS = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -90,8 +186,8 @@ function extractPowerFromVersion(version: string | null): number | null {
   return null;
 }
 
-async function fetchSearchPage(make: string, model: string, year: number): Promise<RawListing[]> {
-  const url = `${BASE}/lst/${make}/${model}?sort=standard&desc=0&ustate=U&size=20&page=1&cy=F&atype=C&fregfrom=${year}&fregto=${year}`;
+async function fetchSearchPage(make: string, model: string, year: number, page: number): Promise<RawListing[]> {
+  const url = `${BASE}/lst/${make}/${model}?sort=standard&desc=0&ustate=U&size=20&page=${page}&cy=F&atype=C&fregfrom=${year}&fregto=${year}`;
 
   let html: string;
   try {
@@ -192,10 +288,10 @@ function parseAs24Listing(
 export const autoscout24Scraper: Scraper = {
   name: "autoscout24",
   async fetch({ limit } = {}): Promise<RawListing[]> {
-    const batchSize = Math.min(limit ?? 120, 300);
+    const batchSize = Math.min(limit ?? 500, 1500);
     const out: RawListing[] = [];
 
-    // Shuffle targets: rotate through makes × years
+    // Shuffle cibles : rotation aléatoire pour couvrir tout le catalogue sur plusieurs jours
     type Target = { make: string; model: string; year: number };
     const targets: Target[] = [];
     const shuffledModels = shuffle(MAKES_MODELS);
@@ -211,12 +307,21 @@ export const autoscout24Scraper: Scraper = {
     for (const { make, model, year } of targets) {
       if (out.length >= batchSize) break;
       try {
-        const listings = await fetchSearchPage(make, model, year);
+        // Récupérer plusieurs pages en parallèle pour chaque combo make/model/year
+        const pages = await Promise.all(
+          Array.from({ length: PAGES_PER_COMBO }, (_, i) =>
+            fetchSearchPage(make, model, year, i + 1)
+          )
+        );
+        const listings = pages.flat();
         for (const l of listings) {
           if (!seen.has(l.source_id)) {
             seen.add(l.source_id);
             out.push(l);
           }
+        }
+        if (listings.length > 0) {
+          console.log(`[autoscout24] ${make}/${model}/${year}: +${listings.length} (total ${out.length})`);
         }
       } catch (e) {
         console.warn(`[autoscout24] ${make}/${model}/${year}:`, (e as Error).message);

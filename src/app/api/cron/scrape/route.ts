@@ -9,6 +9,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { runScrapers } = await import("@/lib/scrapers");
-  const result = await runScrapers({ limit: 300 });
+  const result = await runScrapers({ limit: 1500 });
   return NextResponse.json(result);
 }
