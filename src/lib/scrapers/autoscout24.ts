@@ -140,17 +140,49 @@ const MAKES_MODELS: { make: string; model: string }[] = [
   // Suzuki
   { make: "suzuki", model: "vitara" },
   { make: "suzuki", model: "swift" },
+  // Segment budget / entrée de gamme < 5 000 €
+  { make: "citroen", model: "c1" },
+  { make: "toyota", model: "aygo" },
+  { make: "peugeot", model: "107" },
+  { make: "volkswagen", model: "up" },
+  { make: "seat", model: "mii" },
+  { make: "skoda", model: "citigo" },
+  { make: "renault", model: "logan" },
+  { make: "dacia", model: "logan-mcv" },
+  { make: "fiat", model: "punto" },
+  { make: "opel", model: "agila" },
+  { make: "opel", model: "meriva" },
+  { make: "ford", model: "ka" },
+  { make: "hyundai", model: "i10" },
+  { make: "kia", model: "picanto" },
+  { make: "volkswagen", model: "lupo" },
+  { make: "smart", model: "fortwo" },
+  { make: "renault", model: "symbol" },
+  { make: "nissan", model: "note" },
+  // Utilitaires légers (fourgons, vans) — marché pro
+  { make: "renault", model: "trafic" },
+  { make: "volkswagen", model: "transporter" },
+  { make: "ford", model: "transit" },
+  { make: "mercedes-benz", model: "sprinter" },
+  { make: "opel", model: "vivaro" },
+  { make: "fiat", model: "ducato" },
+  { make: "peugeot", model: "boxer" },
+  { make: "citroen", model: "jumpy" },
 ];
 
-// Années ciblées — plage élargie 2015-2024 pour plus de volume
-const YEARS = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
+// Années ciblées — 2010-2024 pour couvrir le budget (< 5 000 €) jusqu'au récent
+const YEARS = [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
-// Pays ciblés — France + Belgique + Allemagne
-// cy=F: France  cy=B: Belgique  cy=D: Allemagne
+// Pays ciblés — Europe de l'Ouest + Espagne (gros stock budget)
+// cy codes: F=France  B=Belgique  D=Allemagne  NL=Pays-Bas  L=Luxembourg  E=Espagne  I=Italie
 const COUNTRIES: { code: string; label: string; lang: string }[] = [
-  { code: "F", label: "France",    lang: "fr-FR,fr;q=0.9" },
-  { code: "B", label: "Belgique",  lang: "fr-BE,fr;q=0.9" },
-  { code: "D", label: "Allemagne", lang: "de-DE,de;q=0.9" },
+  { code: "F",  label: "France",      lang: "fr-FR,fr;q=0.9" },
+  { code: "B",  label: "Belgique",    lang: "fr-BE,fr;q=0.9" },
+  { code: "D",  label: "Allemagne",   lang: "de-DE,de;q=0.9" },
+  { code: "NL", label: "Pays-Bas",    lang: "nl-NL,nl;q=0.9" },
+  { code: "L",  label: "Luxembourg",  lang: "fr-LU,fr;q=0.9" },
+  { code: "E",  label: "Espagne",     lang: "es-ES,es;q=0.9" },
+  { code: "I",  label: "Italie",      lang: "it-IT,it;q=0.9" },
 ];
 
 function shuffle<T>(arr: T[]): T[] {

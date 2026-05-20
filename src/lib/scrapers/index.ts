@@ -16,6 +16,8 @@ import { spoticarScraper } from "./spoticar";
 import { bcaScraper } from "./bca";
 import { lacentraleScraper } from "./lacentrale";
 import { leboncoinScraper } from "./leboncoin";
+import { mobiledeScaper } from "./mobilede";
+import { marktplaatsScraper } from "./marktplaats";
 import { createCustomScraper } from "./universal";
 
 const BUILTIN: Record<string, Scraper> = {
@@ -28,12 +30,14 @@ const BUILTIN: Record<string, Scraper> = {
   bca: bcaScraper,
   lacentrale: lacentraleScraper,
   leboncoin: leboncoinScraper,
+  mobilede: mobiledeScaper,
+  marktplaats: marktplaatsScraper,
 };
 
 export async function getActiveScrapers(): Promise<{ scrapers: Scraper[]; customSourceIds: string[] }> {
   if (process.env.SCRAPERS_MODE === "demo") return { scrapers: [demoScraper], customSourceIds: [] };
 
-  const builtinList = (process.env.SCRAPERS_ENABLED ?? "aramis,bymycar,ebay,autoscout24,spoticar,lacentrale,leboncoin")
+  const builtinList = (process.env.SCRAPERS_ENABLED ?? "aramis,bymycar,ebay,autoscout24,spoticar,lacentrale,leboncoin,mobilede,marktplaats")
     .split(",").map((s) => s.trim()).filter(Boolean);
   const builtin = builtinList.map((name) => BUILTIN[name]).filter(Boolean);
 
