@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
-// Called by Vercel Cron every hour
+export const maxDuration = 60; // Vercel Hobby max
+
+// Called by Vercel Cron every day
 export async function GET(req: Request) {
   const secret = req.headers.get("authorization");
   if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
