@@ -16,7 +16,7 @@ import { spoticarScraper } from "./spoticar";
 import { bcaScraper } from "./bca";
 import { lacentraleScraper } from "./lacentrale";
 import { leboncoinScraper } from "./leboncoin";
-import { mobiledeScaper } from "./mobilede";
+import { mobiledeScraper } from "./mobilede";
 import { marktplaatsScraper } from "./marktplaats";
 import { createCustomScraper } from "./universal";
 
@@ -30,7 +30,7 @@ const BUILTIN: Record<string, Scraper> = {
   bca: bcaScraper,
   lacentrale: lacentraleScraper,
   leboncoin: leboncoinScraper,
-  mobilede: mobiledeScaper,
+  mobilede: mobiledeScraper,
   marktplaats: marktplaatsScraper,
 };
 

@@ -270,7 +270,7 @@ async function fetchSearchPage(
   return [];
 }
 
-export const mobiledeScaper: Scraper = {
+export const mobiledeScraper: Scraper = {
   name: "mobilede",
   async fetch({ limit } = {}): Promise<RawListing[]> {
     const batchSize = Math.min(limit ?? 400, 1200);
