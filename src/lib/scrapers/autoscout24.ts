@@ -145,6 +145,14 @@ const MAKES_MODELS: { make: string; model: string }[] = [
 // Années ciblées — plage élargie 2015-2024 pour plus de volume
 const YEARS = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 
+// Pays ciblés — France + Belgique + Allemagne
+// cy=F: France  cy=B: Belgique  cy=D: Allemagne
+const COUNTRIES: { code: string; label: string; lang: string }[] = [
+  { code: "F", label: "France",    lang: "fr-FR,fr;q=0.9" },
+  { code: "B", label: "Belgique",  lang: "fr-BE,fr;q=0.9" },
+  { code: "D", label: "Allemagne", lang: "de-DE,de;q=0.9" },
+];
+
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -186,8 +194,14 @@ function extractPowerFromVersion(version: string | null): number | null {
   return null;
 }
 
-async function fetchSearchPage(make: string, model: string, year: number, page: number): Promise<RawListing[]> {
-  const url = `${BASE}/lst/${make}/${model}?sort=standard&desc=0&ustate=U&size=20&page=${page}&cy=F&atype=C&fregfrom=${year}&fregto=${year}`;
+async function fetchSearchPage(
+  make: string,
+  model: string,
+  year: number,
+  page: number,
+  country: { code: string; label: string; lang: string },
+): Promise<RawListing[]> {
+  const url = `${BASE}/lst/${make}/${model}?sort=standard&desc=0&ustate=U&size=20&page=${page}&cy=${country.code}&atype=C&fregfrom=${year}&fregto=${year}`;
 
   let html: string;
   try {
@@ -195,7 +209,7 @@ async function fetchSearchPage(make: string, model: string, year: number, page: 
       headers: {
         "user-agent": UA,
         "accept": "text/html,application/xhtml+xml",
-        "accept-language": "fr-FR,fr;q=0.9",
+        "accept-language": country.lang,
       },
     });
     if (!res.ok) return [];
@@ -216,7 +230,7 @@ async function fetchSearchPage(make: string, model: string, year: number, page: 
   if (!Array.isArray(rawListings)) return [];
 
   return rawListings
-    .map((raw: unknown) => parseAs24Listing(raw as Record<string, unknown>, make, model, year))
+    .map((raw: unknown) => parseAs24Listing(raw as Record<string, unknown>, make, model, year, country.label))
     .filter((l): l is RawListing => l !== null);
 }
 
@@ -225,6 +239,7 @@ function parseAs24Listing(
   fallbackMake: string,
   fallbackModel: string,
   year: number,
+  countryLabel = "France",
 ): RawListing | null {
   const id = String(raw.id ?? raw.crossReferenceId ?? "");
   if (!id) return null;
@@ -250,7 +265,10 @@ function parseAs24Listing(
   const photosCount = Array.isArray(raw.images) ? raw.images.length : 0;
 
   const postalCode = (location.zip as string) ?? null;
-  const region = (location.city as string) ?? null;
+  // Pour la France : on stocke la ville ; pour les autres pays : le nom du pays
+  // (permet le filtrage "Belgique" / "Allemagne" dans la liste)
+  const city = (location.city as string) ?? null;
+  const region = countryLabel === "France" ? city : countryLabel;
 
   const sellerType = (seller.type as string) ?? "dealer";
   const sellerKind: "pro" | "particulier" = sellerType === "private" ? "particulier" : "pro";
@@ -291,26 +309,30 @@ export const autoscout24Scraper: Scraper = {
     const batchSize = Math.min(limit ?? 500, 1500);
     const out: RawListing[] = [];
 
-    // Shuffle cibles : rotation aléatoire pour couvrir tout le catalogue sur plusieurs jours
-    type Target = { make: string; model: string; year: number };
+    // Shuffle cibles : rotation aléatoire sur make × model × year × pays
+    // 83 modèles × 10 ans × 3 pays = 2 490 combos possibles
+    type Target = { make: string; model: string; year: number; country: typeof COUNTRIES[number] };
     const targets: Target[] = [];
     const shuffledModels = shuffle(MAKES_MODELS);
     const shuffledYears = shuffle(YEARS);
-    for (const { make, model } of shuffledModels) {
-      for (const year of shuffledYears) {
-        targets.push({ make, model, year });
+    const shuffledCountries = shuffle(COUNTRIES);
+    for (const country of shuffledCountries) {
+      for (const { make, model } of shuffledModels) {
+        for (const year of shuffledYears) {
+          targets.push({ make, model, year, country });
+        }
       }
     }
 
     const seen = new Set<string>();
 
-    for (const { make, model, year } of targets) {
+    for (const { make, model, year, country } of targets) {
       if (out.length >= batchSize) break;
       try {
-        // Récupérer plusieurs pages en parallèle pour chaque combo make/model/year
+        // Récupérer plusieurs pages en parallèle pour chaque combo make/model/year/pays
         const pages = await Promise.all(
           Array.from({ length: PAGES_PER_COMBO }, (_, i) =>
-            fetchSearchPage(make, model, year, i + 1)
+            fetchSearchPage(make, model, year, i + 1, country)
           )
         );
         const listings = pages.flat();
@@ -321,10 +343,10 @@ export const autoscout24Scraper: Scraper = {
           }
         }
         if (listings.length > 0) {
-          console.log(`[autoscout24] ${make}/${model}/${year}: +${listings.length} (total ${out.length})`);
+          console.log(`[autoscout24] ${country.code}/${make}/${model}/${year}: +${listings.length} (total ${out.length})`);
         }
       } catch (e) {
-        console.warn(`[autoscout24] ${make}/${model}/${year}:`, (e as Error).message);
+        console.warn(`[autoscout24] ${country.code}/${make}/${model}/${year}:`, (e as Error).message);
       }
       await sleep(CRAWL_DELAY);
     }
