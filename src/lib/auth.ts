@@ -88,7 +88,7 @@ const DEMO_USER: User = {
   stripe_customer_id: null,
   stripe_subscription_id: null,
   subscription_status: "active",
-  trial_ends_at: null,
+  trial_ends_at: new Date(Date.now() + 999 * 86400_000).toISOString(),
   created_at: new Date().toISOString(),
   digest_enabled: 1,
 };
