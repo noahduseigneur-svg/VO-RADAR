@@ -24,8 +24,7 @@ export default async function PipelinePage() {
       <header className="mb-6">
         <h1 className="text-3xl font-semibold">Pipeline d&rsquo;achat</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          {total} deal{total !== 1 ? "s" : ""} en cours. Glissez les étiquettes depuis n&rsquo;importe quelle annonce
-          pour changer leur statut.
+          {total} deal{total !== 1 ? "s" : ""}{" "}en cours. Glissez les étiquettes depuis n&rsquo;importe quelle annonce pour changer leur statut.
         </p>
       </header>
 

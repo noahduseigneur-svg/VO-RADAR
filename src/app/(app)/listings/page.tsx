@@ -124,12 +124,12 @@ export default async function ListingsPage(props: {
         {sinceLast && <input type="hidden" name="since_last" value="1" />}
 
         {/* Row 1 — search + brand + carburant + carrosserie + score */}
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-5">
           <input
             name="search"
             defaultValue={sp.search ?? ""}
             placeholder="Marque, modèle…"
-            className="col-span-2 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:border-rose-500 focus:outline-none md:col-span-1"
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:border-rose-500 focus:outline-none sm:col-span-2 md:col-span-1"
           />
           <select name="brand" defaultValue={sp.brand ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
             <option value="">Toutes marques</option>
@@ -149,7 +149,7 @@ export default async function ListingsPage(props: {
         </div>
 
         {/* Row 2 — localisation + année + km + prix + vendeur */}
-        <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-5">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-5">
           <select name="region" defaultValue={sp.region ?? ""} className={`rounded-lg border px-3 py-2 text-sm ${sp.region ? "border-rose-500/50 bg-rose-500/5" : "border-[var(--border)] bg-[var(--background)]"}`}>
             <option value="">Toutes régions</option>
             {regions.map((r) => <option key={r} value={r}>{r}</option>)}

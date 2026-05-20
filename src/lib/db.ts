@@ -5,6 +5,11 @@ import { type GarageProfile, DEFAULT_PROFILE as DEFAULT_GARAGE } from "./margin"
 
 let initPromise: Promise<Client> | null = null;
 
+/** Convert a libSQL Row (class instance with methods) to a plain serializable object. */
+function rowToPlain<T>(row: unknown): T {
+  return JSON.parse(JSON.stringify(row)) as T;
+}
+
 async function getClient(): Promise<Client> {
   if (!initPromise) {
     initPromise = (async () => {
@@ -381,7 +386,7 @@ export async function queryListings(filters: ListingFilters = {}): Promise<Listi
     LIMIT @limit OFFSET @offset
   `;
   const res = await client.execute({ sql, args: params });
-  return res.rows as unknown as Listing[];
+  return res.rows.map((r) => rowToPlain<Listing>(r));
 }
 
 export async function getDistinctRegions(): Promise<string[]> {
@@ -396,7 +401,7 @@ export async function getDistinctRegions(): Promise<string[]> {
 export async function getListing(id: string): Promise<Listing | null> {
   const client = await getClient();
   const res = await client.execute({ sql: "SELECT * FROM listings WHERE id = ?", args: [id] });
-  return (res.rows[0] as unknown as Listing | undefined) ?? null;
+  return res.rows[0] ? rowToPlain<Listing>(res.rows[0]) : null;
 }
 
 export async function getBrands(): Promise<string[]> {
@@ -405,7 +410,14 @@ export async function getBrands(): Promise<string[]> {
     sql: "SELECT DISTINCT brand FROM listings ORDER BY brand",
     args: [],
   });
-  return (res.rows as unknown as { brand: string }[]).map((r) => r.brand);
+  const raw = (res.rows as unknown as { brand: string }[]).map((r) => r.brand);
+  // Deduplicate case-insensitively; prefer the first mixed-case form seen
+  const seen = new Map<string, string>();
+  for (const b of raw) {
+    const key = b.toUpperCase();
+    if (!seen.has(key)) seen.set(key, b);
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, "fr"));
 }
 
 export async function getSavedListingIds(userId: string): Promise<Set<string>> {
@@ -515,7 +527,7 @@ export async function getTopListingsSince(sinceIso: string, limit = 15): Promise
     sql: "SELECT * FROM listings WHERE fetched_at >= ? ORDER BY score DESC, delta_pct ASC LIMIT ?",
     args: [sinceIso, limit],
   });
-  return res.rows as unknown as Listing[];
+  return res.rows.map((r) => rowToPlain<Listing>(r));
 }
 
 // Sessions ------------------------------------------------------------------
@@ -725,7 +737,7 @@ export async function listSavedListings(userId: string): Promise<Listing[]> {
           ORDER BY s.saved_at DESC`,
     args: [userId],
   });
-  return res.rows as unknown as Listing[];
+  return res.rows.map((r) => rowToPlain<Listing>(r));
 }
 
 // Custom sources -----------------------------------------------------------
@@ -1032,7 +1044,7 @@ export async function getVehicleCheck(userId: string, listingId: string): Promis
     sql: "SELECT * FROM vehicle_checks WHERE user_id = ? AND listing_id = ?",
     args: [userId, listingId],
   });
-  return (res.rows[0] as unknown as VehicleCheck | undefined) ?? null;
+  return res.rows[0] ? rowToPlain<VehicleCheck>(res.rows[0]) : null;
 }
 
 export async function saveVehicleCheck(userId: string, listingId: string, data: Partial<VehicleCheck>): Promise<void> {
