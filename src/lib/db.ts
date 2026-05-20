@@ -331,6 +331,7 @@ export interface ListingFilters {
   fuel?: string;
   seller_kind?: string;
   region?: string;
+  source?: string;
   search?: string;
   body_type?: string;
   hide_risky_engines?: boolean;
@@ -355,6 +356,7 @@ export async function queryListings(filters: ListingFilters = {}): Promise<Listi
   if (filters.fuel)        { where.push("fuel = @fuel");              params.fuel = filters.fuel; }
   if (filters.seller_kind) { where.push("seller_kind = @seller_kind"); params.seller_kind = filters.seller_kind; }
   if (filters.region)      { where.push("region = @region");          params.region = filters.region; }
+  if (filters.source)      { where.push("source = @source");          params.source = filters.source; }
   if (filters.search) {
     where.push("(title LIKE @search OR brand LIKE @search OR model LIKE @search)");
     params.search = `%${filters.search}%`;
@@ -396,6 +398,35 @@ export async function getDistinctRegions(): Promise<string[]> {
     args: [],
   });
   return (res.rows as unknown as { region: string }[]).map((r) => r.region);
+}
+
+export async function getDistinctSources(): Promise<string[]> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: "SELECT DISTINCT source FROM listings WHERE source IS NOT NULL AND source != '' ORDER BY source",
+    args: [],
+  });
+  return (res.rows as unknown as { source: string }[]).map((r) => r.source);
+}
+
+export const FOREIGN_REGIONS = ["Belgique", "Allemagne", "Pays-Bas", "Luxembourg", "Espagne", "Italie"] as const;
+
+export async function getRegionStats(): Promise<{ total: number; byRegion: Record<string, number> }> {
+  const client = await getClient();
+  const stmts: InStatement[] = [
+    { sql: "SELECT COUNT(*) n FROM listings", args: [] },
+    {
+      sql: `SELECT region, COUNT(*) n FROM listings WHERE region IN (${FOREIGN_REGIONS.map(() => "?").join(",")}) GROUP BY region`,
+      args: [...FOREIGN_REGIONS],
+    },
+  ];
+  const results = await client.batch(stmts, "read");
+  const total = Number((results[0].rows[0] as unknown as { n: number }).n);
+  const byRegion: Record<string, number> = {};
+  for (const row of results[1].rows as unknown as { region: string; n: number }[]) {
+    byRegion[row.region] = Number(row.n);
+  }
+  return { total, byRegion };
 }
 
 export async function getListing(id: string): Promise<Listing | null> {
@@ -1103,6 +1134,30 @@ export async function getSellerActivity(listingId: string): Promise<{ price_chan
     price_changes: Math.max(0, history.length - 1),
     days_on_market: daysOnMarket,
   };
+}
+
+// Purge des annonces trop anciennes ----------------------------------------
+/**
+ * Supprime les annonces dont la date de dernier scraping est antérieure à
+ * `daysOld` jours, à l'exception des sources premium (aramis, bymycar,
+ * spoticar) qui sont conservées indéfiniment.
+ *
+ * @returns Le nombre de lignes supprimées.
+ */
+export async function purgeOldListings(daysOld = 90): Promise<number> {
+  const client = await getClient();
+  const cutoff = new Date(Date.now() - daysOld * 86_400_000).toISOString();
+  const res = await client.execute({
+    sql: `DELETE FROM listings
+          WHERE fetched_at < ?
+            AND source NOT IN ('aramis', 'bymycar', 'spoticar')`,
+    args: [cutoff],
+  });
+  const deleted = res.rowsAffected ?? 0;
+  if (deleted > 0) {
+    console.log(`[purge] ${deleted} annonces supprimées (> ${daysOld}j)`);
+  }
+  return deleted;
 }
 
 // Generic raw query helper — use sparingly for complex analytics SQL

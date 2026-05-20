@@ -10,6 +10,23 @@ import { fmtDate, fmtEUR, fmtKm } from "@/lib/utils";
 import type { Listing } from "@/lib/types";
 import type { DealStatus } from "@/lib/db";
 
+const COUNTRY_BADGES: Record<string, { flag: string; short: string; color: string }> = {
+  "Belgique":   { flag: "🇧🇪", short: "BE", color: "bg-yellow-500/20 text-yellow-300" },
+  "Allemagne":  { flag: "🇩🇪", short: "DE", color: "bg-yellow-400/20 text-yellow-200" },
+  "Pays-Bas":   { flag: "🇳🇱", short: "NL", color: "bg-orange-500/20 text-orange-300" },
+  "Luxembourg": { flag: "🇱🇺", short: "LU", color: "bg-sky-500/20 text-sky-300" },
+  "Espagne":    { flag: "🇪🇸", short: "ES", color: "bg-red-500/20 text-red-300" },
+  "Italie":     { flag: "🇮🇹", short: "IT", color: "bg-green-500/20 text-green-300" },
+};
+
+const SOURCE_BADGES: Record<string, { label: string; color: string }> = {
+  "mobilede":   { label: "Mobile.de",   color: "bg-blue-500/20 text-blue-300" },
+  "marktplaats": { label: "Marktplaats", color: "bg-orange-500/20 text-orange-300" },
+  "autoscout24": { label: "AutoScout24", color: "bg-violet-500/20 text-violet-300" },
+  "leboncoin":   { label: "LeBonCoin",  color: "bg-orange-400/20 text-orange-200" },
+  "lacentrale":  { label: "La Centrale", color: "bg-cyan-500/20 text-cyan-300" },
+};
+
 export function ListingCard({
   listing,
   savedInitial = false,
@@ -22,6 +39,8 @@ export function ListingCard({
   isNew?: boolean;
 }) {
   const gain = listing.delta_eur;
+  const countryBadge = listing.region ? COUNTRY_BADGES[listing.region] : null;
+  const sourceBadge = listing.source ? SOURCE_BADGES[listing.source.toLowerCase()] : null;
   return (
     <article className="group relative rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 transition hover:border-neutral-700">
       {isNew && (
@@ -39,9 +58,21 @@ export function ListingCard({
             <p className="mt-0.5 truncate text-xs text-neutral-500">{listing.engine_designation}</p>
           )}
         </Link>
-        <div className="flex items-center gap-1.5">
-          <SaveButton listingId={listing.id} initial={savedInitial} />
-          <ScoreBadge score={listing.score} />
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1.5">
+            {countryBadge && (
+              <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${countryBadge.color}`}>
+                {countryBadge.flag} {countryBadge.short}
+              </span>
+            )}
+            {sourceBadge && (
+              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${sourceBadge.color}`}>
+                {sourceBadge.label}
+              </span>
+            )}
+            <SaveButton listingId={listing.id} initial={savedInitial} />
+            <ScoreBadge score={listing.score} />
+          </div>
         </div>
       </header>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, Bookmark, Gauge, LayoutDashboard, ListChecks, LogOut, Plug, Settings, SlidersHorizontal } from "lucide-react";
+import { BarChart3, Bell, Bookmark, Gauge, LayoutDashboard, ListChecks, LogOut, Plug, Settings, SlidersHorizontal, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -14,6 +14,7 @@ const items = [
   { href: "/alerts",        label: "Alertes",       icon: SlidersHorizontal },
   { href: "/analytics",     label: "Analytics",     icon: BarChart3 },
   { href: "/sources",       label: "Sources",       icon: Plug },
+  { href: "/admin/scrapers", label: "Monitoring",   icon: Activity },
   { href: "/settings",      label: "Paramètres",    icon: Settings },
 ];
 

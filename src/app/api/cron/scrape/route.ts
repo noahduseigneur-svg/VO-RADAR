@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { purgeOldListings } from "@/lib/db";
 
 export const maxDuration = 60; // Vercel Hobby max
 
@@ -10,5 +11,9 @@ export async function GET(req: Request) {
   }
   const { runScrapers } = await import("@/lib/scrapers");
   const result = await runScrapers({ limit: 1500 });
-  return NextResponse.json(result);
+
+  // Nettoyer les annonces non-vues depuis plus de 90 jours
+  const purged = await purgeOldListings(90);
+
+  return NextResponse.json({ ...result, purged });
 }

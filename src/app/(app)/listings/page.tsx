@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Download, Sparkles } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { dealStatusMapForListings, getDistinctRegions, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince } from "@/lib/db";
+import { dealStatusMapForListings, getDistinctRegions, getDistinctSources, getRegionStats, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince, FOREIGN_REGIONS } from "@/lib/db";
 import type { ListingSort } from "@/lib/db";
 import { ListingCard } from "@/components/listing-card";
 
@@ -35,7 +35,7 @@ export default async function ListingsPage(props: {
     max_price?: string; min_price?: string; search?: string; hide_risky?: string;
     max_critair?: string; since_last?: string; region?: string;
     max_km?: string; min_year?: string; max_year?: string;
-    seller_kind?: string; sort?: string;
+    seller_kind?: string; sort?: string; source?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -59,6 +59,7 @@ export default async function ListingsPage(props: {
     min_year: sp.min_year ? Number(sp.min_year) : undefined,
     max_year: sp.max_year ? Number(sp.max_year) : undefined,
     region: sp.region || undefined,
+    source: sp.source || undefined,
     seller_kind: sp.seller_kind || undefined,
     search: sp.search,
     hide_risky_engines: sp.hide_risky === "1",
@@ -71,9 +72,11 @@ export default async function ListingsPage(props: {
     listings = listings.filter((l) => l.fetched_at > prevVisit);
   }
 
-  const [brands, regions, savedSet, dealMap] = await Promise.all([
+  const [brands, regions, sources, regionStats, savedSet, dealMap] = await Promise.all([
     getBrands(),
     getDistinctRegions(),
+    getDistinctSources(),
+    getRegionStats(),
     getSavedListingIds(user.id),
     dealStatusMapForListings(user.id, listings.map((l) => l.id)),
   ]);
@@ -85,7 +88,7 @@ export default async function ListingsPage(props: {
   const freshSinceLast = prevVisit ? await countFreshSince(prevVisit) : 0;
 
   const activeFilterCount = [
-    sp.brand, sp.fuel, sp.body_type, sp.region, sp.seller_kind,
+    sp.brand, sp.fuel, sp.body_type, sp.region, sp.seller_kind, sp.source,
     sp.max_km, sp.min_year, sp.max_year, sp.max_price, sp.min_price,
     sp.min_score && sp.min_score !== "0" ? sp.min_score : null,
     sp.hide_risky === "1" ? "1" : null,
@@ -101,6 +104,27 @@ export default async function ListingsPage(props: {
             {listings.length} annonce{listings.length !== 1 ? "s" : ""}
             {activeFilterCount > 0 && <span className="ml-1 text-rose-400">· {activeFilterCount} filtre{activeFilterCount > 1 ? "s" : ""} actif{activeFilterCount > 1 ? "s" : ""}</span>}
           </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-neutral-500" />
+              {regionStats.total.toLocaleString("fr-FR")} au total
+            </span>
+            {FOREIGN_REGIONS.filter((r) => regionStats.byRegion[r]).map((r) => {
+              const FLAGS: Record<string, string> = {
+                "Belgique": "🇧🇪", "Allemagne": "🇩🇪", "Pays-Bas": "🇳🇱",
+                "Luxembourg": "🇱🇺", "Espagne": "🇪🇸", "Italie": "🇮🇹",
+              };
+              const SHORTS: Record<string, string> = {
+                "Belgique": "BE", "Allemagne": "DE", "Pays-Bas": "NL",
+                "Luxembourg": "LU", "Espagne": "ES", "Italie": "IT",
+              };
+              return (
+                <span key={r} className="flex items-center gap-0.5">
+                  {FLAGS[r]} {regionStats.byRegion[r].toLocaleString("fr-FR")} {SHORTS[r]}
+                </span>
+              );
+            })}
+          </div>
         </div>
         <Link
           href={csvHref}
@@ -200,8 +224,21 @@ export default async function ListingsPage(props: {
           </select>
         </div>
 
-        {/* Row 3 — ZFE + options + tri + bouton */}
+        {/* Row 3 — source + ZFE + options + tri + bouton */}
         <div className="mt-2 flex flex-wrap items-center gap-3">
+          <select name="source" defaultValue={sp.source ?? ""} className={`rounded-lg border px-3 py-2 text-sm ${sp.source ? "border-rose-500/50 bg-rose-500/5" : "border-[var(--border)] bg-[var(--background)]"}`}>
+            <option value="">Toutes sources</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>{
+                s === "mobilede" ? "Mobile.de" :
+                s === "marktplaats" ? "Marktplaats" :
+                s === "autoscout24" ? "AutoScout24" :
+                s === "leboncoin" ? "LeBonCoin" :
+                s === "lacentrale" ? "La Centrale" :
+                s
+              }</option>
+            ))}
+          </select>
           <select name="max_critair" defaultValue={sp.max_critair ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
             {ZFE_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>

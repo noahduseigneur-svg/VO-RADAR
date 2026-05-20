@@ -3,18 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Bookmark, Gauge, LayoutDashboard, ListChecks, LogOut, Menu, Plug, Settings, SlidersHorizontal, X } from "lucide-react";
+import { Activity, Bell, Bookmark, Gauge, LayoutDashboard, ListChecks, LogOut, Menu, Plug, Settings, SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/dashboard",     label: "Dashboard",     icon: LayoutDashboard },
-  { href: "/listings",      label: "Annonces",      icon: Gauge },
-  { href: "/pipeline",      label: "Pipeline",      icon: ListChecks },
-  { href: "/notifications", label: "Notifications", icon: Bell, badge: true },
-  { href: "/saved",         label: "Favoris",       icon: Bookmark },
-  { href: "/alerts",        label: "Alertes",       icon: SlidersHorizontal },
-  { href: "/sources",       label: "Sources",       icon: Plug },
-  { href: "/settings",      label: "Paramètres",    icon: Settings },
+  { href: "/dashboard",      label: "Dashboard",     icon: LayoutDashboard },
+  { href: "/listings",       label: "Annonces",      icon: Gauge },
+  { href: "/pipeline",       label: "Pipeline",      icon: ListChecks },
+  { href: "/notifications",  label: "Notifications", icon: Bell, badge: true },
+  { href: "/saved",          label: "Favoris",       icon: Bookmark },
+  { href: "/alerts",         label: "Alertes",       icon: SlidersHorizontal },
+  { href: "/sources",        label: "Sources",       icon: Plug },
+  { href: "/admin/scrapers", label: "Monitoring",    icon: Activity },
+  { href: "/settings",       label: "Paramètres",    icon: Settings },
 ];
 
 export function MobileNav({ dealership, unseen }: { dealership: string; unseen: number }) {
