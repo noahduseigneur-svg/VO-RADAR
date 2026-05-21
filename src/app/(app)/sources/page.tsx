@@ -6,13 +6,18 @@ import { SourceActions } from "@/components/source-actions";
 import { fmtDate } from "@/lib/utils";
 
 const BUILTIN_SOURCES = [
-  { id: "autoscout24", name: "AutoScout24", description: "Marketplace européenne — multi-marques, ~300 annonces FR/run" },
-  { id: "lacentrale", name: "La Centrale", description: "Agrégateur FR — parsing __NEXT_DATA__, Crawl-delay 4s" },
-  { id: "leboncoin", name: "LeBonCoin", description: "Petites annonces FR — parsing __NEXT_DATA__, DataDome. Optionnel : LBC_COOKIE + LBC_PROXY" },
-  { id: "aramis", name: "Aramis Auto", description: "Mandataire Stellantis FR — robots.txt OK, Crawl-delay 5s" },
-  { id: "bymycar", name: "ByMyCar", description: "Réseau concessions multi-marques FR" },
-  { id: "spoticar", name: "Spoticar", description: "Réseau VO Stellantis FR — robots.txt OK" },
-  { id: "ebay", name: "eBay Motors", description: "API officielle. Multi-pays (FR/DE/IT/UK). Nécessite EBAY_APP_ID + EBAY_CERT_ID" },
+  // --- Voitures ---
+  { id: "autoscout24",     name: "AutoScout24",      description: "🚗 Marketplace européenne — multi-marques, ~300 annonces FR/run", category: "voitures" },
+  { id: "lacentrale",      name: "La Centrale",       description: "🚗 Agrégateur FR — parsing __NEXT_DATA__, Crawl-delay 4s", category: "voitures" },
+  { id: "leboncoin",       name: "LeBonCoin",         description: "🚗 Petites annonces FR — parsing __NEXT_DATA__, DataDome. Optionnel : LBC_COOKIE + LBC_PROXY", category: "voitures" },
+  { id: "aramis",          name: "Aramis Auto",       description: "🚗 Mandataire Stellantis FR — robots.txt OK, Crawl-delay 5s", category: "voitures" },
+  { id: "bymycar",         name: "ByMyCar",           description: "🚗 Réseau concessions multi-marques FR", category: "voitures" },
+  { id: "spoticar",        name: "Spoticar",          description: "🚗 Réseau VO Stellantis FR — robots.txt OK", category: "voitures" },
+  { id: "ebay",            name: "eBay Motors",       description: "🚗 API officielle. Multi-pays (FR/DE/IT/UK). Nécessite EBAY_APP_ID + EBAY_CERT_ID", category: "voitures" },
+  // --- Motos ---
+  { id: "leboncoin-moto",   name: "LeBonCoin Motos",  description: "🏍️ Section motos/scooters/quad LBC — même format que voitures, DataDome. Optionnel : LBC_COOKIE + LBC_PROXY", category: "motos" },
+  { id: "lacentrale-moto",  name: "La Centrale Motos", description: "🏍️ Section motos La Centrale — top 35 marques/modèles", category: "motos" },
+  { id: "autoscout24-moto", name: "AutoScout24 Motos", description: "🏍️ Section motos AutoScout24 — vehicle_type=M, 35 combos make/model", category: "motos" },
 ];
 
 export default async function SourcesPage() {

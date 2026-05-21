@@ -19,6 +19,9 @@ import { leboncoinScraper } from "./leboncoin";
 import { mobiledeScraper } from "./mobilede";
 import { marktplaatsScraper } from "./marktplaats";
 import { createCustomScraper } from "./universal";
+import { leboncoinMotoScraper } from "./leboncoin-moto";
+import { lacentraleMotoScraper } from "./lacentrale-moto";
+import { autoscout24MotoScraper } from "./autoscout24-moto";
 
 const BUILTIN: Record<string, Scraper> = {
   demo: demoScraper,
@@ -32,6 +35,9 @@ const BUILTIN: Record<string, Scraper> = {
   leboncoin: leboncoinScraper,
   mobilede: mobiledeScraper,
   marktplaats: marktplaatsScraper,
+  "leboncoin-moto": leboncoinMotoScraper,
+  "lacentrale-moto": lacentraleMotoScraper,
+  "autoscout24-moto": autoscout24MotoScraper,
 };
 
 export async function getActiveScrapers(): Promise<{ scrapers: Scraper[]; customSourceIds: string[] }> {

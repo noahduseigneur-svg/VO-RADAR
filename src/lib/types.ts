@@ -2,6 +2,8 @@ export type Fuel = "essence" | "diesel" | "hybride" | "electrique" | "gpl";
 export type Gearbox = "manuelle" | "automatique";
 export type SellerKind = "particulier" | "pro";
 export type BodyType = "citadine" | "berline" | "break" | "suv" | "monospace" | "cabriolet" | "coupe" | "utilitaire" | "inconnu";
+export type MotoType = "roadster" | "trail" | "sportive" | "custom" | "scooter" | "enduro" | "tourisme" | "naked" | "autre";
+export type VehicleType = "car" | "moto";
 export type ReliabilityRating = "excellent" | "good" | "average" | "risky" | "avoid" | "unknown";
 export type CritAirClass = 0 | 1 | 2 | 3 | 4 | 5 | -1; // -1 = non classé
 
@@ -31,6 +33,10 @@ export interface Listing {
   first_seen_at?: string | null; // première fois que l'annonce a été scrapée (optionnel pour les scrapers)
   engine_designation: string | null;
   body_type: BodyType;
+  // moto-specific (null for cars)
+  vehicle_type?: VehicleType | null;
+  moto_type?: MotoType | null;
+  cylindree_cc?: number | null;
   // computed
   market_value_eur: number;
   delta_eur: number;

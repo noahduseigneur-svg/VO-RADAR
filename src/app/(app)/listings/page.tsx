@@ -8,6 +8,7 @@ import { SavedSearchesBar } from "@/components/saved-searches-bar";
 
 const FUELS = ["essence", "diesel", "hybride", "electrique", "gpl"];
 const BODIES = ["citadine", "berline", "break", "suv", "monospace", "cabriolet", "coupe"];
+const MOTO_TYPES = ["roadster", "trail", "sportive", "custom", "scooter", "enduro", "tourisme", "naked", "autre"] as const;
 const SCORE_TIERS = [
   { label: "Tous scores", value: "0" },
   { label: "Correct+ (50+)", value: "50" },
@@ -37,6 +38,7 @@ export default async function ListingsPage(props: {
     max_critair?: string; since_last?: string; region?: string;
     max_km?: string; min_year?: string; max_year?: string;
     seller_kind?: string; sort?: string; source?: string; country?: string;
+    vehicle_type?: string; moto_type?: string; min_cc?: string; max_cc?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -49,11 +51,12 @@ export default async function ListingsPage(props: {
   const sinceLast = sp.since_last === "1";
   const sort = (SORT_OPTIONS.find((o) => o.value === sp.sort)?.value) ?? "score_desc";
 
+  const isMoto = sp.vehicle_type === "moto";
   const filters = {
     brand: sp.brand,
     model: sp.model || undefined,
     fuel: sp.fuel,
-    body_type: sp.body_type,
+    body_type: isMoto ? undefined : sp.body_type,
     min_score: sp.min_score ? Number(sp.min_score) : 0,
     max_price: sp.max_price ? Number(sp.max_price) : undefined,
     min_price: sp.min_price ? Number(sp.min_price) : undefined,
@@ -67,6 +70,10 @@ export default async function ListingsPage(props: {
     search: sp.search,
     hide_risky_engines: sp.hide_risky === "1",
     max_critair: sp.max_critair ? Number(sp.max_critair) : undefined,
+    vehicle_type: sp.vehicle_type || undefined,
+    moto_type: isMoto ? (sp.moto_type || undefined) : undefined,
+    min_cylindree: isMoto && sp.min_cc ? Number(sp.min_cc) : undefined,
+    max_cylindree: isMoto && sp.max_cc ? Number(sp.max_cc) : undefined,
     sort,
     limit: 60,
   };
@@ -93,11 +100,13 @@ export default async function ListingsPage(props: {
   const freshSinceLast = prevVisit ? await countFreshSince(prevVisit) : 0;
 
   const activeFilterCount = [
-    sp.brand, sp.model, sp.fuel, sp.body_type, sp.region, sp.seller_kind, sp.source, sp.country,
+    sp.brand, sp.model, sp.fuel, isMoto ? sp.moto_type : sp.body_type,
+    sp.region, sp.seller_kind, sp.source, sp.country,
     sp.max_km, sp.min_year, sp.max_year, sp.max_price, sp.min_price,
     sp.min_score && sp.min_score !== "0" ? sp.min_score : null,
     sp.hide_risky === "1" ? "1" : null,
     sp.max_critair,
+    isMoto ? (sp.min_cc || sp.max_cc || undefined) : undefined,
   ].filter(Boolean).length;
 
   return (
@@ -157,17 +166,55 @@ export default async function ListingsPage(props: {
       <form method="GET" className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
         {sinceLast && <input type="hidden" name="since_last" value="1" />}
 
+        {/* Toggle Voitures / Motos */}
+        <div className="mb-3 pb-3 border-b border-[var(--border)] flex items-center gap-2">
+          {[
+            { value: "", label: "🚗 Voitures" },
+            { value: "moto", label: "🏍️ Motos" },
+          ].map(({ value, label }) => {
+            const active = (sp.vehicle_type ?? "") === value;
+            // Reset moto-specific params when switching
+            const params = new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(sp)
+                  .filter(([k, v]) => k !== "vehicle_type" && k !== "moto_type" && k !== "min_cc" && k !== "max_cc" && k !== "body_type" && v != null && v !== "")
+              ) as Record<string, string>
+            );
+            if (value) params.set("vehicle_type", value);
+            return (
+              <Link
+                key={value}
+                href={`/listings?${params.toString()}`}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-rose-500 text-white shadow-sm"
+                    : "border border-[var(--border)] text-neutral-400 hover:border-neutral-500 hover:text-white"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+
         {/* Presets rapides */}
         <div className="mb-3 pb-3 border-b border-[var(--border)] flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-neutral-500 mr-1">Recherche rapide :</span>
-          {[
+          {(isMoto ? [
+            { label: "🔥 Pépites", params: { min_score: "85" } },
+            { label: "🏁 Sportives", params: { moto_type: "sportive" } },
+            { label: "🧭 Trails", params: { moto_type: "trail" } },
+            { label: "⚡ Électriques", params: { fuel: "electrique" } },
+            { label: "💰 <8k€", params: { max_price: "8000" } },
+            { label: "🤝 Particuliers", params: { seller_kind: "particulier" } },
+          ] : [
             { label: "🔥 Pépites", params: { min_score: "85" } },
             { label: "⚡ Électriques", params: { fuel: "electrique" } },
             { label: "💰 <15k€", params: { max_price: "15000" } },
             { label: "🚙 SUV récents", params: { body_type: "suv", min_year: "2019" } },
             { label: "🤝 Particuliers", params: { seller_kind: "particulier" } },
             { label: "🌍 Étranger", params: { country: "etranger" } },
-          ].map(({ label, params }) => {
+          ]).map(({ label, params }) => {
             const newParams = new URLSearchParams(
               Object.fromEntries(
                 Object.entries({ ...Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null && v !== "")), ...params })
@@ -228,12 +275,15 @@ export default async function ListingsPage(props: {
           })}
         </div>
 
-        {/* Row 1 — search + brand + model? + carburant + carrosserie + score */}
+        {/* Hidden vehicle_type to preserve across filter changes */}
+        {isMoto && <input type="hidden" name="vehicle_type" value="moto" />}
+
+        {/* Row 1 — search + brand + model? + carburant + carrosserie/type + score */}
         <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${sp.brand && models.length > 0 ? "md:grid-cols-6" : "md:grid-cols-5"}`}>
           <input
             name="search"
             defaultValue={sp.search ?? ""}
-            placeholder="Marque, modèle…"
+            placeholder={isMoto ? "Marque, modèle moto…" : "Marque, modèle…"}
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:border-rose-500 focus:outline-none sm:col-span-2 md:col-span-1"
           />
           <select name="brand" defaultValue={sp.brand ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
@@ -250,14 +300,57 @@ export default async function ListingsPage(props: {
             <option value="">Tous carburants</option>
             {FUELS.map((f) => <option key={f} value={f} className="capitalize">{f}</option>)}
           </select>
-          <select name="body_type" defaultValue={sp.body_type ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
-            <option value="">Toutes carrosseries</option>
-            {BODIES.map((b) => <option key={b} value={b} className="capitalize">{b}</option>)}
-          </select>
+          {isMoto ? (
+            <select name="moto_type" defaultValue={sp.moto_type ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
+              <option value="">Tous types</option>
+              {MOTO_TYPES.map((t) => <option key={t} value={t} className="capitalize">{t}</option>)}
+            </select>
+          ) : (
+            <select name="body_type" defaultValue={sp.body_type ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
+              <option value="">Toutes carrosseries</option>
+              {BODIES.map((b) => <option key={b} value={b} className="capitalize">{b}</option>)}
+            </select>
+          )}
           <select name="min_score" defaultValue={sp.min_score ?? "0"} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
             {SCORE_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
+
+        {/* Row 1b — cylindrée (motos seulement) */}
+        {isMoto && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-neutral-500">Cylindrée :</span>
+            {[
+              { label: "Toutes", min: "", max: "" },
+              { label: "< 125 cc", min: "", max: "125" },
+              { label: "125–500 cc", min: "125", max: "500" },
+              { label: "500–900 cc", min: "500", max: "900" },
+              { label: "> 900 cc", min: "900", max: "" },
+            ].map(({ label, min, max }) => {
+              const active = (sp.min_cc ?? "") === min && (sp.max_cc ?? "") === max;
+              const params = new URLSearchParams(
+                Object.fromEntries(
+                  Object.entries(sp).filter(([k, v]) => k !== "min_cc" && k !== "max_cc" && v != null && v !== "")
+                ) as Record<string, string>
+              );
+              if (min) params.set("min_cc", min);
+              if (max) params.set("max_cc", max);
+              return (
+                <Link
+                  key={label}
+                  href={`/listings?${params.toString()}`}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "bg-rose-500/15 border border-rose-500/50 text-rose-300"
+                      : "border border-[var(--border)] text-neutral-400 hover:border-neutral-500 hover:text-white"
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* Row 2 — localisation + année + km + prix + vendeur */}
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-5">

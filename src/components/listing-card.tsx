@@ -59,8 +59,11 @@ const BRAND_COLORS: Record<string, string> = {
 
 const SOURCE_LOGO_BADGE: Record<string, React.ReactNode> = {
   autoscout24: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500 text-white shadow">AS24</span>,
+  "autoscout24-moto": <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500 text-white shadow">AS24</span>,
   leboncoin: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-400 text-white shadow">LBC</span>,
+  "leboncoin-moto": <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-400 text-white shadow">LBC</span>,
   lacentrale: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white shadow">LC</span>,
+  "lacentrale-moto": <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white shadow">LC</span>,
   mobilede: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500 text-white shadow">M.de</span>,
   marktplaats: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-700 text-white shadow">MP</span>,
   aramis: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-600 text-white shadow">ARAM</span>,
@@ -178,12 +181,29 @@ export function ListingCard({
       </header>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <EngineBadge rating={listing.engine_rating} />
-        <CritAirBadge value={listing.critair} compact />
-        {listing.body_type !== "inconnu" && (
-          <span className="rounded-full bg-neutral-700/40 px-1.5 py-0.5 text-[10px] text-neutral-300 capitalize">
-            {listing.body_type}
-          </span>
+        {listing.vehicle_type === "moto" ? (
+          <>
+            {listing.moto_type && (
+              <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] text-violet-300 capitalize">
+                🏍️ {listing.moto_type}
+              </span>
+            )}
+            {listing.cylindree_cc && (
+              <span className="rounded-full bg-neutral-700/40 px-1.5 py-0.5 text-[10px] text-neutral-300 font-mono">
+                {listing.cylindree_cc} cc
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <EngineBadge rating={listing.engine_rating} />
+            <CritAirBadge value={listing.critair} compact />
+            {listing.body_type !== "inconnu" && (
+              <span className="rounded-full bg-neutral-700/40 px-1.5 py-0.5 text-[10px] text-neutral-300 capitalize">
+                {listing.body_type}
+              </span>
+            )}
+          </>
         )}
         <DealStatusButton listingId={listing.id} initial={dealStatus} compact />
       </div>

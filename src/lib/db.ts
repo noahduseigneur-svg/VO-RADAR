@@ -242,6 +242,9 @@ async function migrate(client: Client): Promise<void> {
     "ALTER TABLE deal_pipeline ADD COLUMN won_at TEXT",
     "ALTER TABLE listings ADD COLUMN photos_json TEXT",
     "ALTER TABLE listings ADD COLUMN first_seen_at TEXT",
+    "ALTER TABLE listings ADD COLUMN vehicle_type TEXT NOT NULL DEFAULT 'car'",
+    "ALTER TABLE listings ADD COLUMN moto_type TEXT",
+    "ALTER TABLE listings ADD COLUMN cylindree_cc INTEGER",
   ];
   for (const sql of additives) {
     await client.execute({ sql, args: [] }).catch(() => {});
@@ -298,13 +301,15 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         year, mileage_km, fuel, gearbox, power_hp, price_eur, seller_kind,
         postal_code, region, photos_count, photo_url, photos_json, posted_at, fetched_at, first_seen_at,
         market_value_eur, delta_eur, delta_pct, score,
-        engine_rating, critair, comparables_n, comparables_median_eur
+        engine_rating, critair, comparables_n, comparables_median_eur,
+        vehicle_type, moto_type, cylindree_cc
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?, ?, ?
+        ?, ?, ?, ?,
+        ?, ?, ?
       )
       ON CONFLICT(source, source_id) DO UPDATE SET
         price_eur = excluded.price_eur,
@@ -320,7 +325,10 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         engine_rating = excluded.engine_rating,
         critair = excluded.critair,
         comparables_n = excluded.comparables_n,
-        comparables_median_eur = excluded.comparables_median_eur`,
+        comparables_median_eur = excluded.comparables_median_eur,
+        vehicle_type = excluded.vehicle_type,
+        moto_type = excluded.moto_type,
+        cylindree_cc = COALESCE(excluded.cylindree_cc, listings.cylindree_cc)`,
       args: [
         r.id, r.source, r.source_id, r.url, r.title, r.brand, r.model,
         r.version ?? null, r.engine_designation ?? null, r.body_type,
@@ -329,6 +337,7 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         r.photos_count, r.photo_url ?? null, r.photos_json ?? null, r.posted_at, r.fetched_at, r.fetched_at,
         r.market_value_eur, r.delta_eur, r.delta_pct, r.score,
         r.engine_rating, r.critair, r.comparables_n, r.comparables_median_eur ?? null,
+        r.vehicle_type ?? "car", r.moto_type ?? null, r.cylindree_cc ?? null,
       ],
     });
     const prevPrice = priceMap.get(`${r.source}:${r.source_id}`);
@@ -384,6 +393,10 @@ export interface ListingFilters {
   body_type?: string;
   hide_risky_engines?: boolean;
   max_critair?: number;
+  vehicle_type?: string; // "car" | "moto"
+  moto_type?: string;
+  min_cylindree?: number;
+  max_cylindree?: number;
   sort?: ListingSort;
   limit?: number;
   offset?: number;
@@ -430,6 +443,10 @@ export async function queryListings(filters: ListingFilters = {}): Promise<Listi
     where.push("critair >= 0 AND critair <= @max_critair");
     params.max_critair = filters.max_critair;
   }
+  if (filters.vehicle_type) { where.push("COALESCE(vehicle_type,'car') = @vehicle_type"); params.vehicle_type = filters.vehicle_type; }
+  if (filters.moto_type)    { where.push("moto_type = @moto_type");    params.moto_type = filters.moto_type; }
+  if (filters.min_cylindree !== undefined) { where.push("cylindree_cc >= @min_cc"); params.min_cc = filters.min_cylindree; }
+  if (filters.max_cylindree !== undefined) { where.push("cylindree_cc <= @max_cc"); params.max_cc = filters.max_cylindree; }
   const orderBy = {
     score_desc:   "score DESC, posted_at DESC",
     price_asc:    "price_eur ASC",
