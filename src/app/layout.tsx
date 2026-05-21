@@ -5,6 +5,10 @@ import { CookieBanner } from "@/components/cookie-banner";
 export const metadata: Metadata = {
   title: "VO Radar — Sourcing VO temps réel pour concessions",
   description: "Détectez les bonnes affaires VO avant vos concurrents. Agrégateur d'annonces, scoring automatique, alertes en temps réel.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

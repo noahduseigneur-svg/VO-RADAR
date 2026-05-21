@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Bell, Bookmark, Gauge, LayoutDashboard, ListChecks, LogOut, Plug, Settings, SlidersHorizontal, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/logo";
 
 const items = [
   { href: "/dashboard",     label: "Dashboard",     icon: LayoutDashboard },
@@ -23,12 +24,12 @@ export function SideNav({ dealership, unseen }: { dealership: string; unseen: nu
   return (
     <aside className="hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--card)] p-4 lg:flex">
       <Link href="/dashboard" className="mb-8 flex items-center gap-2 px-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-rose-500/15 text-rose-400 ring-1 ring-rose-500/30">
-          <SlidersHorizontal size={16} />
-        </span>
+        <Logo variant="icon" size={30} />
         <div className="leading-tight">
-          <div className="font-semibold">VO Radar</div>
-          <div className="text-xs text-neutral-500 truncate max-w-[140px]">{dealership}</div>
+          <div className="text-[14px] font-bold tracking-tight text-white leading-none">
+            VO <span className="font-light tracking-[0.18em] text-rose-400">RADAR</span>
+          </div>
+          <div className="text-xs text-neutral-500 truncate max-w-[130px] mt-0.5">{dealership}</div>
         </div>
       </Link>
       <nav className="flex flex-col gap-1">

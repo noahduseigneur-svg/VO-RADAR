@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { login } from "@/lib/auth";
+import { Logo } from "@/components/logo";
 
 async function loginAction(formData: FormData) {
   "use server";
@@ -61,11 +62,8 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
         <form action={loginAction} className="w-full max-w-sm space-y-5">
           {/* Logo / brand */}
           <div className="mb-8">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-7 w-7 rounded-lg bg-rose-500 flex items-center justify-center">
-                <span className="text-white font-bold text-xs">VO</span>
-              </div>
-              <span className="font-semibold text-lg">Radar</span>
+            <div className="mb-6">
+              <Logo variant="full" size={36} />
             </div>
             <h1 className="text-2xl font-semibold">Connexion</h1>
             <p className="mt-1 text-sm text-neutral-400">Accédez à votre flux de bonnes affaires VO.</p>
