@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, TrendingUp, Flame, Activity, Sparkles, AlertTriangle } from "lucide-react";
+import { BarChart3, TrendingUp, Flame, Activity, Sparkles, AlertTriangle, BarChart2, Clock, MapPin, Fuel } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { rawQuery } from "@/lib/db";
 import { fmtEUR } from "@/lib/utils";
@@ -8,6 +8,10 @@ interface BrandStat { brand: string; n: number; avg_price: number; avg_score: nu
 interface DailyVolume { day: string; n: number }
 interface ScoreBucket { bucket: string; n: number; cls: string }
 interface RiskyEngine { brand: string; model: string; engine_designation: string | null; n: number }
+interface SourceStat { source: string; n: number; avg_score: number; pct_pepites: number; avg_delta: number }
+interface HourStat { h: string; n: number }
+interface RegionStat { region: string; n: number; avg_delta: number; pepites: number }
+interface FuelStat { fuel: string; n: number; avg_price: number; avg_score: number; avg_km: number }
 
 export default async function AnalyticsPage() {
   await requireUser();
@@ -27,6 +31,10 @@ export default async function AnalyticsPage() {
     riskyTop,
     bodies,
     fuels,
+    sourceStats,
+    hourStats,
+    regionStats,
+    fuelStats,
   ] = await Promise.all([
     rawQuery<{ n: number }>("SELECT COUNT(*) n FROM listings"),
     rawQuery<{ n: number }>("SELECT COUNT(*) n FROM listings WHERE fetched_at > datetime('now','-24 hours')"),
@@ -47,6 +55,31 @@ export default async function AnalyticsPage() {
         GROUP BY brand, model, engine_designation ORDER BY n DESC LIMIT 8`),
     rawQuery<{ body_type: string; n: number }>("SELECT body_type, COUNT(*) n FROM listings GROUP BY body_type ORDER BY n DESC"),
     rawQuery<{ fuel: string; n: number }>("SELECT fuel, COUNT(*) n FROM listings GROUP BY fuel ORDER BY n DESC"),
+    rawQuery<SourceStat>(`SELECT source, COUNT(*) n,
+      ROUND(AVG(score)) avg_score,
+      ROUND(100.0*SUM(CASE WHEN score>=85 THEN 1 ELSE 0 END)/COUNT(*),1) pct_pepites,
+      ROUND(AVG(delta_pct),1) avg_delta
+      FROM listings
+      GROUP BY source
+      ORDER BY avg_score DESC`),
+    rawQuery<HourStat>(`SELECT strftime('%H', fetched_at) h, COUNT(*) n
+      FROM listings
+      WHERE fetched_at > datetime('now','-7 days')
+      GROUP BY h ORDER BY h`),
+    rawQuery<RegionStat>(`SELECT region, COUNT(*) n,
+      ROUND(AVG(delta_pct),1) avg_delta,
+      SUM(CASE WHEN score>=85 THEN 1 ELSE 0 END) pepites
+      FROM listings
+      WHERE region IS NOT NULL
+      GROUP BY region
+      HAVING n >= 3
+      ORDER BY avg_delta ASC
+      LIMIT 8`),
+    rawQuery<FuelStat>(`SELECT fuel, COUNT(*) n,
+      ROUND(AVG(price_eur)) avg_price,
+      ROUND(AVG(score)) avg_score,
+      ROUND(AVG(mileage_km)) avg_km
+      FROM listings GROUP BY fuel ORDER BY n DESC`),
   ]);
 
   const avgScore = Math.round(Number(avgScoreRaw));
@@ -60,6 +93,54 @@ export default async function AnalyticsPage() {
   const maxDaily = Math.max(1, ...daily.map((x) => x.n));
   const maxBrand = Math.max(1, ...brandStats.map((x) => x.n));
   const totalScoreBucket = Math.max(1, scoreBuckets.reduce((a, b) => a + b.n, 0));
+
+  // Section A — source perf
+  const sourceStatsMapped = sourceStats.map((s) => ({
+    ...s,
+    n: Number(s.n),
+    avg_score: Number(s.avg_score),
+    pct_pepites: Number(s.pct_pepites),
+    avg_delta: Number(s.avg_delta),
+  }));
+
+  // Section B — hourly hunt window
+  const hours24 = Array.from({ length: 24 }, (_, i) => {
+    const hStr = i.toString().padStart(2, "0");
+    const found = hourStats.find((x) => x.h === hStr);
+    return { h: hStr, n: found ? Number(found.n) : 0 };
+  });
+  const maxHour = Math.max(1, ...hours24.map((x) => x.n));
+  const picHour = hours24.reduce((best, cur) => (cur.n > best.n ? cur : best), hours24[0]).h;
+
+  // Section C — regions
+  const regionStatsMapped = regionStats.map((r) => ({
+    ...r,
+    n: Number(r.n),
+    avg_delta: Number(r.avg_delta),
+    pepites: Number(r.pepites),
+  }));
+  const maxRegionAbs = Math.max(1, ...regionStatsMapped.map((r) => Math.abs(r.avg_delta)));
+
+  // Section D — fuel stats
+  const fuelStatsMapped = fuelStats.map((f) => ({
+    ...f,
+    n: Number(f.n),
+    avg_price: Number(f.avg_price),
+    avg_score: Number(f.avg_score),
+    avg_km: Number(f.avg_km),
+  }));
+  const totalFuel = Math.max(1, fuelStatsMapped.reduce((a, b) => a + b.n, 0));
+  const fuelEmoji: Record<string, string> = {
+    electrique: "⚡", diesel: "🛢️", essence: "⛽", hybride: "🔋", gpl: "🟡",
+    "plug-in hybrid": "🔋", "mild hybrid": "🔋",
+  };
+  function getFuelEmoji(fuel: string) {
+    const key = fuel.toLowerCase();
+    for (const [k, v] of Object.entries(fuelEmoji)) {
+      if (key.includes(k)) return v;
+    }
+    return "🚗";
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-8">
@@ -197,8 +278,182 @@ export default async function AnalyticsPage() {
           )}
         </section>
       </div>
+
+      {/* ── Section A : Performance par source ── */}
+      <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <h2 className="mb-4 flex items-center gap-2 font-semibold">
+          <BarChart2 size={18} className="text-rose-400" /> Performance par source
+        </h2>
+        {sourceStatsMapped.length === 0 ? (
+          <p className="text-sm text-neutral-400">Pas encore de données par source.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-neutral-500">
+                <th className="pb-2 text-left">Source</th>
+                <th className="pb-2 text-right">Annonces</th>
+                <th className="pb-2 text-right">Score moy.</th>
+                <th className="pb-2 text-right">% Pépites</th>
+                <th className="pb-2 text-right">Delta vs cote</th>
+                <th className="pb-2 pl-4 text-left">% Pépites (barre)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sourceStatsMapped.map((s) => {
+                const badgeCls = sourceBadgeCls(s.source);
+                return (
+                  <tr key={s.source} className="border-t border-[var(--border)] even:bg-neutral-900/50">
+                    <td className="py-2">
+                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${badgeCls}`}>{s.source}</span>
+                    </td>
+                    <td className="py-2 text-right font-mono tabular-nums">{s.n.toLocaleString("fr-FR")}</td>
+                    <td className="py-2 text-right">
+                      <span className={s.avg_score >= 70 ? "text-emerald-400" : s.avg_score >= 50 ? "text-neutral-300" : "text-rose-400"}>
+                        {s.avg_score}
+                      </span>
+                    </td>
+                    <td className="py-2 text-right font-mono tabular-nums">{s.pct_pepites}%</td>
+                    <td className={`py-2 text-right font-mono tabular-nums ${s.avg_delta < 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {s.avg_delta > 0 ? "+" : ""}{s.avg_delta}%
+                    </td>
+                    <td className="py-2 pl-4">
+                      <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
+                        <div className="h-full bg-emerald-500" style={{ width: `${s.pct_pepites}%` }} />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ── Section B : Fenêtre de chasse optimale ── */}
+      <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <h2 className="mb-1 flex items-center gap-2 font-semibold">
+          <Clock size={18} className="text-rose-400" /> Quand scraper ? (7 derniers jours)
+        </h2>
+        {hours24.every((x) => x.n === 0) ? (
+          <p className="text-sm text-neutral-400">Pas encore de données sur 7 jours.</p>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-neutral-400">
+              Consultez VO Radar vers <span className="font-semibold text-rose-400">{parseInt(picHour, 10)}h</span> pour être le premier sur les nouvelles annonces.
+            </p>
+            <div className="flex h-32 items-end gap-0.5">
+              {hours24.map((h) => {
+                const pct = Math.max(2, (h.n / maxHour) * 100);
+                const isPic = h.h === picHour;
+                return (
+                  <div key={h.h} className="group flex flex-1 flex-col items-center">
+                    <div className="mb-0.5 text-[9px] text-neutral-500 opacity-0 group-hover:opacity-100">{h.n}</div>
+                    <div
+                      className={`w-full rounded-t transition ${isPic ? "bg-rose-500" : "bg-rose-500/30 hover:bg-rose-500/60"}`}
+                      style={{ height: `${pct}%` }}
+                      title={`${parseInt(h.h, 10)}h : ${h.n} annonces`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-1 flex justify-between text-[10px] text-neutral-500">
+              <span>0h</span>
+              <span>6h</span>
+              <span>12h</span>
+              <span>18h</span>
+              <span>23h</span>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* ── Section C : Top régions opportunités ── */}
+      <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <h2 className="mb-1 flex items-center gap-2 font-semibold">
+          <MapPin size={18} className="text-rose-400" /> Régions les plus compétitives
+        </h2>
+        <p className="mb-4 text-sm text-neutral-400">Régions où les voitures sont en moyenne sous leur cote de marché.</p>
+        {regionStatsMapped.length === 0 ? (
+          <p className="text-sm text-neutral-400">Pas encore assez de données régionales.</p>
+        ) : (
+          <div className="space-y-2">
+            {regionStatsMapped.map((r) => {
+              const barCls = r.avg_delta <= -5 ? "bg-emerald-500" : r.avg_delta < 0 ? "bg-lime-500" : "bg-rose-500";
+              const barPct = Math.max(4, (Math.abs(r.avg_delta) / maxRegionAbs) * 100);
+              return (
+                <div key={r.region} className="flex items-center gap-3">
+                  <span className="w-36 truncate text-xs text-neutral-300">{r.region}</span>
+                  <div className="flex-1">
+                    <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
+                      <div className={`h-full ${barCls}`} style={{ width: `${barPct}%` }} />
+                    </div>
+                  </div>
+                  <span className={`w-16 text-right font-mono text-xs tabular-nums ${r.avg_delta < 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {r.avg_delta > 0 ? "+" : ""}{r.avg_delta}%
+                  </span>
+                  <span className="w-10 text-right font-mono text-xs tabular-nums text-neutral-500">{r.n} ann.</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── Section D : Répartition par énergie ── */}
+      <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <h2 className="mb-4 flex items-center gap-2 font-semibold">
+          <Fuel size={18} className="text-rose-400" /> Répartition par énergie
+        </h2>
+        {fuelStatsMapped.length === 0 ? (
+          <p className="text-sm text-neutral-400">Pas encore de données carburant.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-neutral-500">
+                <th className="pb-2 text-left">Carburant</th>
+                <th className="pb-2 text-right">Nb</th>
+                <th className="pb-2 text-right">% total</th>
+                <th className="pb-2 text-right">Prix moyen</th>
+                <th className="pb-2 text-right">Km moyen</th>
+                <th className="pb-2 text-right">Score moyen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {fuelStatsMapped.map((f) => (
+                <tr key={f.fuel} className="border-t border-[var(--border)] even:bg-neutral-900/50">
+                  <td className="py-2 font-medium">
+                    <span className="mr-2">{getFuelEmoji(f.fuel)}</span>{f.fuel}
+                  </td>
+                  <td className="py-2 text-right font-mono tabular-nums">{f.n.toLocaleString("fr-FR")}</td>
+                  <td className="py-2 text-right font-mono tabular-nums text-neutral-400">{((f.n / totalFuel) * 100).toFixed(1)}%</td>
+                  <td className="py-2 text-right font-mono tabular-nums">{fmtEUR(f.avg_price)}</td>
+                  <td className="py-2 text-right font-mono tabular-nums">{f.avg_km.toLocaleString("fr-FR")} km</td>
+                  <td className="py-2 text-right">
+                    <span className={f.avg_score >= 70 ? "text-emerald-400" : f.avg_score >= 50 ? "text-neutral-300" : "text-rose-400"}>
+                      {f.avg_score}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
+}
+
+function sourceBadgeCls(source: string): string {
+  const s = source.toLowerCase();
+  if (s.includes("autoscout")) return "bg-orange-500/20 text-orange-300";
+  if (s.includes("leboncoin")) return "bg-orange-600/20 text-orange-400";
+  if (s.includes("lacentrale")) return "bg-blue-500/20 text-blue-300";
+  if (s.includes("mobilede")) return "bg-blue-600/20 text-blue-300";
+  if (s.includes("marktplaats")) return "bg-blue-800/20 text-blue-400";
+  if (s.includes("aramisauto")) return "bg-purple-500/20 text-purple-300";
+  if (s.includes("spoticar")) return "bg-teal-500/20 text-teal-300";
+  return "bg-neutral-700/40 text-neutral-300";
 }
 
 function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: "rose" | "emerald" | "amber" }) {

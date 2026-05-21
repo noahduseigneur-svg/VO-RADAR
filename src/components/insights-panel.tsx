@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, Info, Search, TrendingDown, TrendingUp, XCircle, Sparkles } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle, CheckCircle2, Info, Search, Sparkles, TrendingDown, TrendingUp, XCircle, Zap } from "lucide-react";
 import type { Listing } from "@/lib/types";
 import { identifyEngine } from "@/lib/reliability";
 import { evaluateCritAir } from "@/lib/critair";
@@ -40,10 +40,16 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
 
   return (
     <div className="space-y-4">
+      {/* Titre principal */}
+      <div className="flex items-center gap-2">
+        <Zap size={18} className="text-rose-500 shrink-0" />
+        <h1 className="text-lg font-bold tracking-tight">Analyse VO Radar</h1>
+      </div>
+
       {/* Score breakdown */}
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
         <h2 className="mb-3 flex items-center gap-2 font-semibold">
-          <Sparkles size={16} className="text-rose-400" /> Pourquoi ce score : {breakdown.score}/100
+          <Zap size={16} className="text-rose-400" /> Pourquoi ce score : {breakdown.score}/100
         </h2>
         <div className="space-y-1.5">
           <FactorRow label="Score de base" delta={50} neutral />
@@ -60,17 +66,24 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
       {/* Engine reliability */}
       {eng.profile ? (
         <section className={`rounded-xl border p-6 ${
-          eng.rating === "avoid" ? "border-rose-500/30 bg-rose-500/5" :
-          eng.rating === "risky" ? "border-amber-500/30 bg-amber-500/5" :
-          eng.rating === "excellent" ? "border-emerald-500/30 bg-emerald-500/5" :
-          "border-[var(--border)] bg-[var(--card)]"
+          eng.rating === "avoid" ? "border-rose-500/20 bg-rose-500/5" :
+          eng.rating === "risky" ? "border-amber-500/20 bg-amber-500/5" :
+          eng.rating === "excellent" || eng.rating === "good" ? "border-emerald-500/20 bg-emerald-500/5" :
+          "border-neutral-700 bg-neutral-800/50"
         }`}>
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            {eng.rating === "avoid" ? <XCircle size={16} className="text-rose-400" />
+            {eng.rating === "avoid" ? <AlertCircle size={16} className="text-rose-400" />
              : eng.rating === "risky" ? <AlertTriangle size={16} className="text-amber-400" />
-             : <CheckCircle2 size={16} className="text-emerald-400" />}
+             : eng.rating === "excellent" || eng.rating === "good" ? <CheckCircle size={16} className="text-emerald-400" />
+             : <Info size={16} className="text-neutral-400" />}
             Fiabilité moteur
-            <span className="ml-auto rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--background)]">
+            <span className={`ml-auto rounded-full px-2 py-0.5 text-xs font-medium ${
+              eng.rating === "avoid" ? "bg-rose-500/15 text-rose-300" :
+              eng.rating === "risky" ? "bg-amber-500/15 text-amber-300" :
+              eng.rating === "excellent" ? "bg-emerald-500/15 text-emerald-300" :
+              eng.rating === "good" ? "bg-emerald-500/10 text-emerald-400" :
+              "bg-[var(--background)] text-neutral-300"
+            }`}>
               {eng.rating === "avoid" ? "À éviter"
                : eng.rating === "risky" ? "À surveiller"
                : eng.rating === "excellent" ? "Top"
@@ -118,7 +131,7 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
           )}
         </section>
       ) : (
-        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <section className="rounded-xl border border-neutral-700 bg-neutral-800/50 p-6">
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
             <Info size={16} className="text-neutral-400" /> Fiabilité moteur
           </h2>
@@ -129,7 +142,11 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
       )}
 
       {/* ZFE / Crit'Air */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+      <section className={`rounded-xl border p-6 ${
+        zfe.critair <= 1 ? "border-emerald-500/20 bg-emerald-500/5" :
+        zfe.critair >= 4 ? "border-rose-500/20 bg-rose-500/5" :
+        "border-neutral-700 bg-neutral-800/50"
+      }`}>
         <h2 className="mb-3 flex items-center gap-2 font-semibold">
           <span className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded text-[10px] font-bold ${
             zfe.critair === 0 ? "bg-emerald-500" :
@@ -155,7 +172,11 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
       </section>
 
       {/* Carrosserie + marché */}
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+      <section className={`rounded-xl border p-6 ${
+        trend.velocity === "fast" ? "border-emerald-500/20 bg-emerald-500/5" :
+        trend.velocity === "slow" ? "border-rose-500/20 bg-rose-500/5" :
+        "border-neutral-700 bg-neutral-800/50"
+      }`}>
         <h2 className="mb-3 flex items-center gap-2 font-semibold">
           {trend.velocity === "fast" ? <TrendingUp size={16} className="text-emerald-400" />
            : trend.velocity === "slow" ? <TrendingDown size={16} className="text-rose-400" />
