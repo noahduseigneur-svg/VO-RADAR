@@ -15,8 +15,9 @@ export async function GET(req: Request) {
   const { runScrapers } = await import("@/lib/scrapers");
   const { sendDailyDigests } = await import("@/lib/digest");
 
+  const batchLimit = Number(process.env.SCRAPE_BATCH_SIZE ?? 500);
   const [scrapeResult, digestResult] = await Promise.allSettled([
-    runScrapers({ limit: 1500 }),
+    runScrapers({ limit: batchLimit }),
     sendDailyDigests(12),
   ]);
 

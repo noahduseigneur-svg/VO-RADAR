@@ -10,7 +10,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { runScrapers } = await import("@/lib/scrapers");
-  const result = await runScrapers({ limit: 1500 });
+  // Configurable via SCRAPE_BATCH_SIZE (défaut 500 par source pour tenir dans 60s Vercel Hobby)
+  const batchLimit = Number(process.env.SCRAPE_BATCH_SIZE ?? 500);
+  const result = await runScrapers({ limit: batchLimit });
 
   // Nettoyer les annonces non-vues depuis plus de 90 jours
   const purged = await purgeOldListings(90);
