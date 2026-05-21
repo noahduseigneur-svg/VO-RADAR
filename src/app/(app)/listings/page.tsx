@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Download, Sparkles } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { dealStatusMapForListings, getDistinctRegions, getDistinctSources, getRegionStats, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince, FOREIGN_REGIONS } from "@/lib/db";
+import { dealStatusMapForListings, getDistinctRegions, getDistinctSources, getRegionStats, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince, FOREIGN_REGIONS, getModelsForBrand } from "@/lib/db";
 import type { ListingSort } from "@/lib/db";
 import { ListingCard } from "@/components/listing-card";
 
@@ -31,7 +31,7 @@ const YEARS = Array.from({ length: CURRENT_YEAR - 2009 }, (_, i) => CURRENT_YEAR
 
 export default async function ListingsPage(props: {
   searchParams: Promise<{
-    brand?: string; fuel?: string; body_type?: string; min_score?: string;
+    brand?: string; model?: string; fuel?: string; body_type?: string; min_score?: string;
     max_price?: string; min_price?: string; search?: string; hide_risky?: string;
     max_critair?: string; since_last?: string; region?: string;
     max_km?: string; min_year?: string; max_year?: string;
@@ -50,6 +50,7 @@ export default async function ListingsPage(props: {
 
   const filters = {
     brand: sp.brand,
+    model: sp.model || undefined,
     fuel: sp.fuel,
     body_type: sp.body_type,
     min_score: sp.min_score ? Number(sp.min_score) : 0,
@@ -73,13 +74,14 @@ export default async function ListingsPage(props: {
     listings = listings.filter((l) => l.fetched_at > prevVisit);
   }
 
-  const [brands, regions, sources, regionStats, savedSet, dealMap] = await Promise.all([
+  const [brands, regions, sources, regionStats, savedSet, dealMap, models] = await Promise.all([
     getBrands(),
     getDistinctRegions(),
     getDistinctSources(),
     getRegionStats(),
     getSavedListingIds(user.id),
     dealStatusMapForListings(user.id, listings.map((l) => l.id)),
+    sp.brand ? getModelsForBrand(sp.brand) : Promise.resolve([] as string[]),
   ]);
 
   const csvHref = "/api/export/csv?" + new URLSearchParams(
@@ -89,7 +91,7 @@ export default async function ListingsPage(props: {
   const freshSinceLast = prevVisit ? await countFreshSince(prevVisit) : 0;
 
   const activeFilterCount = [
-    sp.brand, sp.fuel, sp.body_type, sp.region, sp.seller_kind, sp.source, sp.country,
+    sp.brand, sp.model, sp.fuel, sp.body_type, sp.region, sp.seller_kind, sp.source, sp.country,
     sp.max_km, sp.min_year, sp.max_year, sp.max_price, sp.min_price,
     sp.min_score && sp.min_score !== "0" ? sp.min_score : null,
     sp.hide_risky === "1" ? "1" : null,
@@ -148,6 +150,39 @@ export default async function ListingsPage(props: {
       <form method="GET" className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
         {sinceLast && <input type="hidden" name="since_last" value="1" />}
 
+        {/* Presets rapides */}
+        <div className="mb-3 pb-3 border-b border-[var(--border)] flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-neutral-500 mr-1">Recherche rapide :</span>
+          {[
+            { label: "🔥 Pépites", params: { min_score: "85" } },
+            { label: "⚡ Électriques", params: { fuel: "electrique" } },
+            { label: "💰 <15k€", params: { max_price: "15000" } },
+            { label: "🚙 SUV récents", params: { body_type: "suv", min_year: "2019" } },
+            { label: "🤝 Particuliers", params: { seller_kind: "particulier" } },
+            { label: "🌍 Étranger", params: { country: "etranger" } },
+          ].map(({ label, params }) => {
+            const newParams = new URLSearchParams(
+              Object.fromEntries(
+                Object.entries({ ...Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null && v !== "")), ...params })
+              ) as Record<string, string>
+            );
+            const isActive = Object.entries(params).every(([k, v]) => (sp as Record<string, string>)[k] === v);
+            return (
+              <Link
+                key={label}
+                href={`/listings?${newParams.toString()}`}
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "bg-rose-500/15 border border-rose-500/50 text-rose-300"
+                    : "border border-[var(--border)] bg-[var(--background)] text-neutral-400 hover:border-neutral-500 hover:text-white"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+
         {/* Filtre pays — pills visuels */}
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-neutral-500 mr-1">Pays :</span>
@@ -186,8 +221,8 @@ export default async function ListingsPage(props: {
           })}
         </div>
 
-        {/* Row 1 — search + brand + carburant + carrosserie + score */}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-5">
+        {/* Row 1 — search + brand + model? + carburant + carrosserie + score */}
+        <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${sp.brand && models.length > 0 ? "md:grid-cols-6" : "md:grid-cols-5"}`}>
           <input
             name="search"
             defaultValue={sp.search ?? ""}
@@ -198,6 +233,12 @@ export default async function ListingsPage(props: {
             <option value="">Toutes marques</option>
             {brands.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
+          {sp.brand && models.length > 0 && (
+            <select name="model" defaultValue={sp.model ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
+              <option value="">Tous modèles</option>
+              {models.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          )}
           <select name="fuel" defaultValue={sp.fuel ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
             <option value="">Tous carburants</option>
             {FUELS.map((f) => <option key={f} value={f} className="capitalize">{f}</option>)}
