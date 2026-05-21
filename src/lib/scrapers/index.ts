@@ -43,7 +43,7 @@ const BUILTIN: Record<string, Scraper> = {
 export async function getActiveScrapers(): Promise<{ scrapers: Scraper[]; customSourceIds: string[] }> {
   if (process.env.SCRAPERS_MODE === "demo") return { scrapers: [demoScraper], customSourceIds: [] };
 
-  const builtinList = (process.env.SCRAPERS_ENABLED ?? "aramis,bymycar,ebay,autoscout24,spoticar,lacentrale,leboncoin,mobilede,marktplaats")
+  const builtinList = (process.env.SCRAPERS_ENABLED ?? "aramis,bymycar,ebay,autoscout24,spoticar,lacentrale,leboncoin,mobilede,marktplaats,autoscout24-moto")
     .split(",").map((s) => s.trim()).filter(Boolean);
   const builtin = builtinList.map((name) => BUILTIN[name]).filter(Boolean);
 
@@ -179,10 +179,16 @@ async function processOneScraper(
 
 const BATCH_SIZE = Number(process.env.SCRAPE_BATCH_SIZE ?? 50);
 
-export async function runScrapers(options?: { limit?: number }): Promise<{ sources: ScrapeRunResult[]; hits: number; emails_sent: number }> {
+export async function runScrapers(options?: { limit?: number; vehicleType?: "car" | "moto" }): Promise<{ sources: ScrapeRunResult[]; hits: number; emails_sent: number }> {
   const batchSize = options?.limit ?? BATCH_SIZE;
   const runStart = new Date().toISOString();
-  const { scrapers, customSourceIds } = await getActiveScrapers();
+  const { scrapers: allScrapers, customSourceIds } = await getActiveScrapers();
+  // Filter by vehicle type if requested: moto scrapers have "-moto" suffix
+  const scrapers = options?.vehicleType
+    ? allScrapers.filter((s) =>
+        options.vehicleType === "moto" ? s.name.endsWith("-moto") : !s.name.endsWith("-moto")
+      )
+    : allScrapers;
   const customIdSet = new Set(customSourceIds);
 
   STATUS.running = true;

@@ -14,7 +14,8 @@ export async function GET(req: Request) {
 
   const freshSince = new Date().toISOString();
   const batchLimit = Number(process.env.SCRAPE_BATCH_SIZE ?? 500);
-  const result = await runScrapers({ limit: batchLimit });
+  // Slot matin (5h) : voitures uniquement pour rester dans les 60s Vercel Hobby
+  const result = await runScrapers({ limit: batchLimit, vehicleType: "car" });
 
   // Matching alertes instantané dès la fin du scrape
   const alertResult = await processNewListingsForAlerts(freshSince).catch((e) => {

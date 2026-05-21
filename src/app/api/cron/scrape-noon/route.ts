@@ -18,8 +18,10 @@ export async function GET(req: Request) {
   const { processNewListingsForAlerts } = await import("@/lib/matcher");
   const freshSince = new Date().toISOString();
   const batchLimit = Number(process.env.SCRAPE_BATCH_SIZE ?? 500);
+  // Slot midi (12h) : motos uniquement + digest quotidien
+  // Les voitures tournent déjà le matin (5h), les motos ici pour séparer les charges
   const [scrapeResult, digestResult] = await Promise.allSettled([
-    runScrapers({ limit: batchLimit }),
+    runScrapers({ limit: batchLimit, vehicleType: "moto" }),
     sendDailyDigests(12),
   ]);
 
