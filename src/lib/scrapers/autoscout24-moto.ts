@@ -133,7 +133,7 @@ function parseAd(ad: As24Ad, make: string, model: string): RawListing | null {
   const postalCode = str(location.zip ?? location.postalCode) ?? null;
 
   // Seller type: "Dealer" or "Private"
-  const sellerType = str(seller.type ?? (seller.dealer ? "Dealer" : "Private") ?? ad.sellerType);
+  const sellerType = str(seller.type ?? (seller.dealer ? "Dealer" : undefined) ?? ad.sellerType);
   const sellerKind: "pro" | "particulier" =
     sellerType && /dealer|pro/i.test(sellerType) ? "pro" : "particulier";
 
