@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, Fuel, Gauge, MapPin, User as UserIcon, Building2, Cog, Zap, Clock, TrendingDown, ExternalLink } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { getDealEntry, getListing, getPriceHistory, isListingSaved, getGarageSettings, getSellerActivity, getVehicleCheck } from "@/lib/db";
+import { getDealEntry, getListing, getPriceHistory, isListingSaved, getGarageSettings, getSellerActivity, getVehicleCheck, getSimilarListings } from "@/lib/db";
 import { fmtDate, fmtEUR, fmtKm } from "@/lib/utils";
 import { ScoreBadge } from "@/components/score-badge";
 import { EngineBadge } from "@/components/engine-badge";
@@ -15,6 +15,7 @@ import { PricingProPanel } from "@/components/pricing-pro-panel";
 import { LiquidityBadge } from "@/components/liquidity-badge";
 import { MarginPanel } from "@/components/margin-panel";
 import { VehicleCheckPanel } from "@/components/vehicle-check-panel";
+import { SimilarListings } from "@/components/similar-listings";
 
 const BRAND_GRADIENTS: Record<string, string> = {
   BMW: "from-blue-900 to-blue-950",
@@ -34,13 +35,14 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
   const listing = await getListing(id);
   if (!listing) notFound();
 
-  const [history, saved, deal, profile, seller, vehicleCheck] = await Promise.all([
+  const [history, saved, deal, profile, seller, vehicleCheck, similar] = await Promise.all([
     getPriceHistory(id),
     isListingSaved(user.id, id),
     getDealEntry(user.id, id),
     getGarageSettings(user.id),
     getSellerActivity(id),
     getVehicleCheck(user.id, id),
+    getSimilarListings(id, listing.brand, listing.model, listing.price_eur, 4),
   ]);
 
   const brandGradient = BRAND_GRADIENTS[listing.brand?.toUpperCase() ?? ""] ?? "from-slate-700 to-slate-950";
@@ -194,6 +196,12 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
           <ExternalLink size={14} /> Voir l&rsquo;annonce originale
         </a>
       </section>
+
+      {similar.length > 0 && (
+        <section className="mt-6">
+          <SimilarListings listings={similar} currentPrice={listing.price_eur} />
+        </section>
+      )}
     </div>
   );
 }
