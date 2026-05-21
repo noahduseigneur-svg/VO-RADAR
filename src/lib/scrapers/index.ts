@@ -1,7 +1,7 @@
 import { listActiveCustomSources, updateCustomSource, upsertListings, getCustomSource } from "../db";
 import { estimateMarketValueDetailed } from "../pricing";
 import { computeProPrice } from "../pricing-pro";
-import { enrichListing } from "../scoring";
+import { enrichListing, enrichMotoListing } from "../scoring";
 import { findComparables } from "../comparables";
 import { detectBodyType } from "../bodywork";
 import { processNewListingsForAlerts } from "../matcher";
@@ -109,8 +109,18 @@ async function processOneScraper(
     }
     const now = new Date().toISOString();
 
+    const isMotoScraper = scraper.name.endsWith("-moto");
+
     // Phase 1 : enrich with cote model only (no comparables yet)
     const enriched: Listing[] = raws.map((r) => {
+      if (isMotoScraper) {
+        // Motos : pas de table de cotes voiture → score neutre, Phase 2 calibre avec kNN
+        return enrichMotoListing(
+          { ...r, body_type: "inconnu", fetched_at: now },
+          r.price_eur, // market_value = asking price pour l'instant → score 50
+          "fallback",
+        );
+      }
       const body = detectBodyType(r.model, r.title, r.version);
       const pricing = estimateMarketValueDetailed({
         brand: r.brand, model: r.model, year: r.year,
@@ -141,6 +151,17 @@ async function processOneScraper(
 
     // Phase 2 : recompute with kNN + options + saison (pricing pro) now that rows are in DB
     const refined: Listing[] = await Promise.all(enriched.map(async (l) => {
+      if (isMotoScraper) {
+        // Motos : kNN comparables uniquement (pas de pricing-pro voiture)
+        const comp = await findComparables({
+          brand: l.brand, model: l.model, year: l.year,
+          mileage_km: l.mileage_km, fuel: l.fuel, excludeId: l.id,
+        });
+        // market value = médiane comparables si dispo, sinon asking price
+        const mv = comp.median_eur && comp.n >= 3 ? comp.median_eur : l.price_eur;
+        const conf: "calibrated" | "fallback" = comp.n >= 3 ? "calibrated" : "fallback";
+        return enrichMotoListing(l, mv, conf, comp);
+      }
       const [comp, pro] = await Promise.all([
         findComparables({
           brand: l.brand, model: l.model, year: l.year,

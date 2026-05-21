@@ -1,10 +1,11 @@
 import Link from "next/link";
 import {
   ArrowRight, Check, Radar, TrendingDown, Gauge, ShieldCheck,
-  FileText, Zap, Clock, BarChart3, Calculator, Star,
+  FileText, Zap, Clock, BarChart3, Calculator, Star, Bike,
 } from "lucide-react";
 import { PLANS } from "@/lib/stripe";
 import { fmtEUR } from "@/lib/utils";
+import { RoiCalculator } from "@/components/roi-calculator";
 
 export default function Landing() {
   return (
@@ -128,9 +129,9 @@ export default function Landing() {
       {/* ── Sources ── */}
       <section className="border-y border-[var(--border)] bg-[var(--card)]/40 py-5">
         <div className="mx-auto max-w-5xl px-6">
-          <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-neutral-600">Sources agrégées</p>
+          <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-neutral-600">Sources agrégées — voitures & motos</p>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {["AutoScout24", "La Centrale", "LeBonCoin", "Aramis", "ByMyCar", "Spoticar", "BCA Enchères", "eBay"].map((s) => (
+            {["AutoScout24", "La Centrale", "LeBonCoin", "Aramis", "ByMyCar", "Spoticar", "BCA Enchères", "eBay", "Mobile.de", "Marktplaats"].map((s) => (
               <span key={s} className="text-sm font-medium text-neutral-500 hover:text-neutral-300 transition-colors">{s}</span>
             ))}
           </div>
@@ -139,11 +140,12 @@ export default function Landing() {
 
       {/* ── Stats strip ── */}
       <section className="border-y border-[var(--border)] bg-[var(--card)]/60 py-8">
-        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 px-6 text-center md:grid-cols-4">
-          <Stat value="6 000+" label="annonces agrégées" />
-          <Stat value="9" label="sources actives" />
+        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-6 px-6 text-center md:grid-cols-5">
+          <Stat value="7 000+" label="annonces agrégées" />
+          <Stat value="10" label="sources actives" />
           <Stat value="2×/jour" label="mise à jour du catalogue" />
-          <Stat value="50+" label="critères analysés par annonce" />
+          <Stat value="50+" label="critères analysés" />
+          <Stat value="🏍️" label="motos incluses" />
         </div>
       </section>
 
@@ -326,14 +328,42 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── ROI Calculator ── */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="grid items-center gap-12 md:grid-cols-2">
+          <div>
+            <SectionLabel>Retour sur investissement</SectionLabel>
+            <h2 className="mt-3 text-3xl font-semibold leading-tight">
+              Rentabilisé dès le premier véhicule optimisé
+            </h2>
+            <p className="mt-4 text-neutral-400">
+              VO Radar ne vous coûte rien — il vous rapporte. Un seul achat optimisé
+              grâce au scoring couvre l&rsquo;abonnement annuel entier. Calculez vous-même.
+            </p>
+            <div className="mt-6 space-y-3">
+              {[
+                "Plan Indépendant à 49 €/mois → rentabilisé en 3h de sourcing",
+                "Plan Concession à 99 €/mois → 1 véhicule à 900 € de marge suffit",
+                "Chaque euro d'abonnement génère en moyenne 15 € de marge supplémentaire",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-2 text-sm text-neutral-300">
+                  <Check size={14} className="mt-1 shrink-0 text-emerald-400" /> {item}
+                </div>
+              ))}
+            </div>
+          </div>
+          <RoiCalculator />
+        </div>
+      </section>
+
       {/* ── Pricing ── */}
-      <section id="pricing" className="mx-auto max-w-6xl px-6 py-20">
+      <section id="pricing" className="bg-[var(--card)]/30 py-20">
+        <div className="mx-auto max-w-6xl px-6">
         <SectionLabel>Tarifs</SectionLabel>
         <h2 className="mt-3 text-center text-3xl font-semibold">
-          Un seul achat optimisé rembourse l&rsquo;abonnement
+          Moins cher qu&rsquo;un abonnement téléphonique professionnel
         </h2>
         <p className="mt-2 text-center text-neutral-400">Sans engagement · 14 jours gratuits · résiliable en 1 clic</p>
-        <p className="mt-1 text-center text-xs text-neutral-600">Exemple basé sur une marge cible de 1 000 € par véhicule</p>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {(Object.entries(PLANS) as [keyof typeof PLANS, (typeof PLANS)[keyof typeof PLANS]][]).map(([key, plan]) => (
             <div
@@ -355,7 +385,11 @@ export default function Landing() {
                 <span className="text-neutral-500">/ mois</span>
               </div>
               <p className="mt-1 text-sm text-neutral-400">{plan.tagline}</p>
-              <ul className="mt-6 space-y-2 text-sm">
+              {/* ROI hint */}
+              <div className="mt-3 rounded-lg bg-emerald-500/8 border border-emerald-500/15 px-3 py-1.5 text-xs text-emerald-400">
+                Rentabilisé dès {Math.ceil(plan.price_eur / 900)} véhicule{Math.ceil(plan.price_eur / 900) > 1 ? "s" : ""} optimisé{Math.ceil(plan.price_eur / 900) > 1 ? "s" : ""} / mois
+              </div>
+              <ul className="mt-4 space-y-2 text-sm">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-neutral-300">
                     <Check size={14} className="mt-1 shrink-0 text-emerald-400" /> {f}
@@ -378,6 +412,7 @@ export default function Landing() {
         <p className="mt-6 text-center text-sm text-neutral-500">
           Engagement annuel disponible · <span className="text-neutral-300">−20%</span> sur tous les plans
         </p>
+        </div>
       </section>
 
       {/* ── FAQ ── */}
@@ -386,7 +421,11 @@ export default function Landing() {
         <div className="space-y-3">
           <Faq
             q="D'où viennent les annonces ?"
-            a="VO Radar agrège 9 sources en continu : AutoScout24, La Centrale, LeBonCoin, Aramis, ByMyCar, Spoticar, BCA Enchères, eBay Motors et les réseaux mandataires — soit 6 000+ annonces disponibles. De nouvelles sources sont régulièrement ajoutées."
+            a="VO Radar agrège 10 sources en continu : AutoScout24, La Centrale, LeBonCoin, Aramis, ByMyCar, Spoticar, BCA Enchères, eBay Motors, Mobile.de et Marktplaats — soit 7 000+ annonces disponibles dont des motos et des véhicules étrangers (Belgique, Allemagne, Pays-Bas). De nouvelles sources sont régulièrement ajoutées."
+          />
+          <Faq
+            q="Les motos sont-elles incluses ?"
+            a="Oui, VO Radar intègre AutoScout24 Moto avec 300+ modèles (Yamaha, Honda, BMW, Kawasaki, Ducati, KTM…). Vous pouvez basculer entre le mode voiture et moto depuis la page annonces, avec des filtres dédiés (type de moto, cylindrée, carburant)."
           />
           <Faq
             q="Comment est calculée la cote ?"
@@ -399,6 +438,10 @@ export default function Landing() {
           <Faq
             q="Combien de temps pour être opérationnel ?"
             a="5 minutes. Vous créez votre compte, entrez vos paramètres de marge, et les premières annonces scorées apparaissent immédiatement. Le digest email du lendemain matin contient déjà vos opportunités filtrées."
+          />
+          <Faq
+            q="Pourquoi passer à 49 €/mois au lieu de 199 € ?"
+            a="L'objectif est simple : rendre VO Radar accessible dès le départ. Un indépendant qui source 5 véhicules par mois rentabilise l'abonnement avec un seul achat optimisé. Nous préférons un grand nombre d'utilisateurs satisfaits à un prix élevé qui freine l'adoption."
           />
           <Faq
             q="Engagement ?"

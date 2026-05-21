@@ -245,6 +245,11 @@ async function migrate(client: Client): Promise<void> {
     "ALTER TABLE listings ADD COLUMN vehicle_type TEXT NOT NULL DEFAULT 'car'",
     "ALTER TABLE listings ADD COLUMN moto_type TEXT",
     "ALTER TABLE listings ADD COLUMN cylindree_cc INTEGER",
+    // Alertes motos
+    "ALTER TABLE alert_rules ADD COLUMN vehicle_type TEXT",
+    "ALTER TABLE alert_rules ADD COLUMN moto_type TEXT",
+    "ALTER TABLE alert_rules ADD COLUMN min_cylindree INTEGER",
+    "ALTER TABLE alert_rules ADD COLUMN max_cylindree INTEGER",
   ];
   for (const sql of additives) {
     await client.execute({ sql, args: [] }).catch(() => {});
@@ -699,14 +704,18 @@ export async function deleteSession(token: string): Promise<void> {
 export async function createAlert(rule: AlertRule): Promise<void> {
   const client = await getClient();
   await client.execute({
-    sql: `INSERT INTO alert_rules (id, user_id, name, brand, model, max_price_eur, max_mileage_km, min_year, fuel, min_score, region, active)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO alert_rules (id, user_id, name, brand, model, max_price_eur, max_mileage_km, min_year, fuel, min_score, region, active, vehicle_type, moto_type, min_cylindree, max_cylindree)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       rule.id, rule.user_id, rule.name,
       rule.brand ?? null, rule.model ?? null,
       rule.max_price_eur ?? null, rule.max_mileage_km ?? null,
       rule.min_year ?? null, rule.fuel ?? null,
       rule.min_score, rule.region ?? null, rule.active,
+      rule.vehicle_type ?? null,
+      rule.moto_type ?? null,
+      rule.min_cylindree ?? null,
+      rule.max_cylindree ?? null,
     ],
   });
 }
@@ -738,6 +747,10 @@ export async function matchListingsForRule(rule: AlertRule, limit = 20): Promise
     fuel: rule.fuel ?? undefined,
     region: rule.region ?? undefined,
     min_score: rule.min_score,
+    vehicle_type: (rule.vehicle_type as "car" | "moto" | undefined) ?? "car",
+    moto_type: rule.moto_type ?? undefined,
+    min_cylindree: rule.min_cylindree ?? undefined,
+    max_cylindree: rule.max_cylindree ?? undefined,
     limit,
   });
 }

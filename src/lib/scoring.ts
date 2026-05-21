@@ -234,3 +234,122 @@ export function enrichListing<T extends Omit<Listing, "market_value_eur" | "delt
     comparables_median_eur: out.comparables_median_eur,
   };
 }
+
+// ── Scoring motos ─────────────────────────────────────────────────────────────
+// Facteurs pertinents pour une moto (pas de Crit'Air, fiabilité, carrosserie voiture)
+// Délégue sur les comparables kNN + kilométrage + vendeur + fraîcheur + photos.
+
+export function scoreMotoListing(
+  args: {
+    price_eur: number;
+    seller_kind: SellerKind;
+    posted_at: string;
+    photos_count: number;
+    mileage_km: number;
+    year: number;
+  },
+  ctx: {
+    market_value_eur: number;
+    market_confidence: "calibrated" | "fallback";
+    comparables?: ComparablesResult;
+  },
+): { score: number; market_value_eur: number; delta_eur: number; delta_pct: number; comparables_n: number; comparables_median_eur: number | null } {
+  const factors: ScoreFactor[] = [];
+
+  // 1. Delta prix vs cote/comparables
+  const delta_eur = ctx.market_value_eur - args.price_eur;
+  const delta_pct = ctx.market_value_eur > 0 ? delta_eur / ctx.market_value_eur : 0;
+
+  if (ctx.market_confidence === "calibrated") {
+    const priceDelta = Math.max(-40, Math.min(40, (delta_pct / 0.30) * 40));
+    factors.push({
+      label: priceDelta > 0 ? "Sous-côté vs comparables" : "Surcoté vs comparables",
+      delta: Math.round(priceDelta),
+      detail: `${delta_pct > 0 ? "+" : ""}${(delta_pct * 100).toFixed(1)}% vs médiane ${ctx.market_value_eur.toLocaleString("fr-FR")} €`,
+    });
+  }
+
+  // 2. Delta vs comparables réels (kNN)
+  if (ctx.comparables && ctx.comparables.median_eur && ctx.comparables.n >= 3) {
+    const c_delta = (ctx.comparables.median_eur - args.price_eur) / ctx.comparables.median_eur;
+    const weight = ctx.comparables.confidence === "high" ? 20 : ctx.comparables.confidence === "medium" ? 14 : 7;
+    const compDelta = Math.max(-weight, Math.min(weight, (c_delta / 0.20) * weight));
+    factors.push({
+      label: compDelta > 0 ? "Moins cher que des motos similaires" : "Plus cher que des motos similaires",
+      delta: Math.round(compDelta),
+      detail: `${ctx.comparables.n} motos similaires, médiane ${ctx.comparables.median_eur.toLocaleString("fr-FR")} €`,
+    });
+  }
+
+  // 3. Kilométrage (motos : < 20k km = faible, > 50k = élevé)
+  const avgKmPerYear = args.mileage_km / Math.max(1, new Date().getFullYear() - args.year + 1);
+  if (avgKmPerYear < 4000 && args.mileage_km < 20000) {
+    factors.push({ label: "Kilométrage très faible", delta: +6, detail: `${args.mileage_km.toLocaleString("fr-FR")} km` });
+  } else if (avgKmPerYear > 15000 || args.mileage_km > 60000) {
+    factors.push({ label: "Kilométrage élevé", delta: -6, detail: `${args.mileage_km.toLocaleString("fr-FR")} km` });
+  }
+
+  // 4. Vendeur particulier
+  if (args.seller_kind === "particulier") {
+    factors.push({ label: "Vendeur particulier", delta: +10, detail: "Pas de marge marchand" });
+  }
+
+  // 5. Fraîcheur
+  const hoursOld = (Date.now() - new Date(args.posted_at).getTime()) / 36e5;
+  const freshness = Math.max(0, Math.min(1, 1 - hoursOld / 48)) * 12;
+  if (freshness >= 3) {
+    factors.push({
+      label: hoursOld < 6 ? "Annonce très récente" : "Annonce récente",
+      delta: Math.round(freshness),
+      detail: `Publiée il y a ${Math.round(hoursOld)} h`,
+    });
+  }
+
+  // 6. Photos
+  if (args.photos_count < 3) {
+    factors.push({ label: "Peu de photos", delta: -8, detail: `${args.photos_count} photo(s)` });
+  }
+
+  const raw = 50 + factors.reduce((s, f) => s + f.delta, 0);
+  const score = Math.max(0, Math.min(100, Math.round(raw)));
+
+  return {
+    score,
+    market_value_eur: ctx.market_value_eur,
+    delta_eur: Math.round(delta_eur),
+    delta_pct: Math.round(delta_pct * 1000) / 10,
+    comparables_n: ctx.comparables?.n ?? 0,
+    comparables_median_eur: ctx.comparables?.median_eur ?? null,
+  };
+}
+
+export function enrichMotoListing<T extends Omit<Listing, "market_value_eur" | "delta_eur" | "delta_pct" | "score" | "engine_rating" | "critair" | "body_type" | "comparables_n" | "comparables_median_eur">>(
+  base: T,
+  marketValue: number,
+  marketConfidence: "calibrated" | "fallback",
+  comparables?: ComparablesResult,
+): Listing {
+  const out = scoreMotoListing(
+    {
+      price_eur: base.price_eur,
+      seller_kind: base.seller_kind,
+      posted_at: base.posted_at,
+      photos_count: base.photos_count,
+      mileage_km: base.mileage_km,
+      year: base.year,
+    },
+    { market_value_eur: marketValue, market_confidence: marketConfidence, comparables },
+  );
+  return {
+    ...base,
+    market_value_eur: out.market_value_eur,
+    delta_eur: out.delta_eur,
+    delta_pct: out.delta_pct,
+    score: out.score,
+    engine_rating: "unknown" as ReliabilityRating,
+    critair: "NC" as unknown as CritAirClass,
+    body_type: "inconnu" as BodyType,
+    comparables_n: out.comparables_n,
+    comparables_median_eur: out.comparables_median_eur,
+  };
+}

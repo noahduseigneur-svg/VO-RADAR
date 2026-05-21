@@ -62,6 +62,11 @@ export interface AlertRule {
   region: string | null;
   active: 0 | 1;
   created_at: string;
+  // Moto support
+  vehicle_type?: "car" | "moto" | null;
+  moto_type?: MotoType | null;
+  min_cylindree?: number | null;
+  max_cylindree?: number | null;
 }
 
 export interface User {
