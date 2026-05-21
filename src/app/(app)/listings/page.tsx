@@ -82,14 +82,15 @@ export default async function ListingsPage(props: {
     listings = listings.filter((l) => l.fetched_at > prevVisit);
   }
 
+  const vt = isMoto ? "moto" : "car";
   const [brands, regions, sources, regionStats, savedSet, dealMap, models, savedSearches] = await Promise.all([
-    getBrands(),
+    getBrands(vt),
     getDistinctRegions(),
-    getDistinctSources(),
-    getRegionStats(),
+    getDistinctSources(vt),
+    getRegionStats(vt),
     getSavedListingIds(user.id),
     dealStatusMapForListings(user.id, listings.map((l) => l.id)),
-    sp.brand ? getModelsForBrand(sp.brand) : Promise.resolve([] as string[]),
+    sp.brand ? getModelsForBrand(sp.brand, vt) : Promise.resolve([] as string[]),
     getSavedSearches(user.id),
   ]);
 
@@ -97,7 +98,7 @@ export default async function ListingsPage(props: {
     Object.fromEntries(Object.entries(sp).filter(([, v]) => v != null && v !== "")) as Record<string, string>
   ).toString();
 
-  const freshSinceLast = prevVisit ? await countFreshSince(prevVisit) : 0;
+  const freshSinceLast = prevVisit ? await countFreshSince(prevVisit, vt) : 0;
 
   const activeFilterCount = [
     sp.brand, sp.model, sp.fuel, isMoto ? sp.moto_type : sp.body_type,
@@ -237,43 +238,45 @@ export default async function ListingsPage(props: {
           })}
         </div>
 
-        {/* Filtre pays — pills visuels */}
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-medium text-neutral-500 mr-1">Pays :</span>
-          {[
-            { value: "", label: "Tous", flag: "🌍" },
-            { value: "france", label: "France", flag: "🇫🇷" },
-            { value: "etranger", label: "Étranger", flag: "🌐" },
-            { value: "Belgique", label: "BE", flag: "🇧🇪" },
-            { value: "Allemagne", label: "DE", flag: "🇩🇪" },
-            { value: "Pays-Bas", label: "NL", flag: "🇳🇱" },
-            { value: "Luxembourg", label: "LU", flag: "🇱🇺" },
-            { value: "Espagne", label: "ES", flag: "🇪🇸" },
-            { value: "Italie", label: "IT", flag: "🇮🇹" },
-          ].map(({ value, label, flag }) => {
-            const active = (sp.country ?? "") === value;
-            const params = new URLSearchParams(
-              Object.fromEntries(Object.entries(sp).filter(([k, v]) => k !== "country" && v != null && v !== "")) as Record<string, string>
-            );
-            if (value) params.set("country", value);
-            return (
-              <Link
-                key={value}
-                href={`/listings?${params.toString()}`}
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                  active
-                    ? "bg-rose-500 text-white"
-                    : "border border-[var(--border)] bg-[var(--background)] text-neutral-400 hover:border-neutral-500 hover:text-white"
-                }`}
-              >
-                {flag} {label}
-                {active && value && (
-                  <span className="ml-0.5 opacity-70">×</span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+        {/* Filtre pays — pills visuels (voitures seulement, les motos sont uniquement FR) */}
+        {!isMoto && (
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-neutral-500 mr-1">Pays :</span>
+            {[
+              { value: "", label: "Tous", flag: "🌍" },
+              { value: "france", label: "France", flag: "🇫🇷" },
+              { value: "etranger", label: "Étranger", flag: "🌐" },
+              { value: "Belgique", label: "BE", flag: "🇧🇪" },
+              { value: "Allemagne", label: "DE", flag: "🇩🇪" },
+              { value: "Pays-Bas", label: "NL", flag: "🇳🇱" },
+              { value: "Luxembourg", label: "LU", flag: "🇱🇺" },
+              { value: "Espagne", label: "ES", flag: "🇪🇸" },
+              { value: "Italie", label: "IT", flag: "🇮🇹" },
+            ].map(({ value, label, flag }) => {
+              const active = (sp.country ?? "") === value;
+              const params = new URLSearchParams(
+                Object.fromEntries(Object.entries(sp).filter(([k, v]) => k !== "country" && v != null && v !== "")) as Record<string, string>
+              );
+              if (value) params.set("country", value);
+              return (
+                <Link
+                  key={value}
+                  href={`/listings?${params.toString()}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "bg-rose-500 text-white"
+                      : "border border-[var(--border)] bg-[var(--background)] text-neutral-400 hover:border-neutral-500 hover:text-white"
+                  }`}
+                >
+                  {flag} {label}
+                  {active && value && (
+                    <span className="ml-0.5 opacity-70">×</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* Hidden vehicle_type to preserve across filter changes */}
         {isMoto && <input type="hidden" name="vehicle_type" value="moto" />}
@@ -413,19 +416,27 @@ export default async function ListingsPage(props: {
                 s === "mobilede" ? "Mobile.de" :
                 s === "marktplaats" ? "Marktplaats" :
                 s === "autoscout24" ? "AutoScout24" :
+                s === "autoscout24-moto" ? "AutoScout24 Moto" :
                 s === "leboncoin" ? "LeBonCoin" :
+                s === "leboncoin-moto" ? "LeBonCoin Moto" :
                 s === "lacentrale" ? "La Centrale" :
+                s === "lacentrale-moto" ? "La Centrale Moto" :
                 s
               }</option>
             ))}
           </select>
-          <select name="max_critair" defaultValue={sp.max_critair ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
-            {ZFE_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          <label className="flex items-center gap-2 text-sm text-neutral-300">
-            <input type="checkbox" name="hide_risky" value="1" defaultChecked={sp.hide_risky === "1"} className="accent-rose-500" />
-            Cacher moteurs à risque
-          </label>
+          {/* Crit'Air + moteurs à risque : voitures uniquement */}
+          {!isMoto && (
+            <>
+              <select name="max_critair" defaultValue={sp.max_critair ?? ""} className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm">
+                {ZFE_TIERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <label className="flex items-center gap-2 text-sm text-neutral-300">
+                <input type="checkbox" name="hide_risky" value="1" defaultChecked={sp.hide_risky === "1"} className="accent-rose-500" />
+                Cacher moteurs à risque
+              </label>
+            </>
+          )}
           <label className="flex items-center gap-2 text-sm text-neutral-300">
             <input type="checkbox" name="since_last" value="1" defaultChecked={sinceLast} className="accent-rose-500" />
             Depuis ma dernière visite
@@ -435,7 +446,10 @@ export default async function ListingsPage(props: {
               {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             {activeFilterCount > 0 && (
-              <Link href="/listings" className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-neutral-400 hover:text-white">
+              <Link
+                href={isMoto ? "/listings?vehicle_type=moto" : "/listings"}
+                className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-neutral-400 hover:text-white"
+              >
                 Réinitialiser
               </Link>
             )}

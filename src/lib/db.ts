@@ -481,24 +481,24 @@ export async function getDistinctRegions(): Promise<string[]> {
   return (res.rows as unknown as { region: string }[]).map((r) => r.region);
 }
 
-export async function getDistinctSources(): Promise<string[]> {
+export async function getDistinctSources(vehicleType: "car" | "moto" = "car"): Promise<string[]> {
   const client = await getClient();
   const res = await client.execute({
-    sql: "SELECT DISTINCT source FROM listings WHERE source IS NOT NULL AND source != '' ORDER BY source",
-    args: [],
+    sql: "SELECT DISTINCT source FROM listings WHERE source IS NOT NULL AND source != '' AND COALESCE(vehicle_type,'car') = ? ORDER BY source",
+    args: [vehicleType],
   });
   return (res.rows as unknown as { source: string }[]).map((r) => r.source);
 }
 
 export const FOREIGN_REGIONS = ["Belgique", "Allemagne", "Pays-Bas", "Luxembourg", "Espagne", "Italie"] as const;
 
-export async function getRegionStats(): Promise<{ total: number; byRegion: Record<string, number> }> {
+export async function getRegionStats(vehicleType: "car" | "moto" = "car"): Promise<{ total: number; byRegion: Record<string, number> }> {
   const client = await getClient();
   const stmts: InStatement[] = [
-    { sql: "SELECT COUNT(*) n FROM listings", args: [] },
+    { sql: "SELECT COUNT(*) n FROM listings WHERE COALESCE(vehicle_type,'car') = ?", args: [vehicleType] },
     {
-      sql: `SELECT region, COUNT(*) n FROM listings WHERE region IN (${FOREIGN_REGIONS.map(() => "?").join(",")}) GROUP BY region`,
-      args: [...FOREIGN_REGIONS],
+      sql: `SELECT region, COUNT(*) n FROM listings WHERE COALESCE(vehicle_type,'car') = ? AND region IN (${FOREIGN_REGIONS.map(() => "?").join(",")}) GROUP BY region`,
+      args: [vehicleType, ...FOREIGN_REGIONS],
     },
   ];
   const results = await client.batch(stmts, "read");
@@ -516,11 +516,11 @@ export async function getListing(id: string): Promise<Listing | null> {
   return res.rows[0] ? rowToPlain<Listing>(res.rows[0]) : null;
 }
 
-export async function getBrands(): Promise<string[]> {
+export async function getBrands(vehicleType: "car" | "moto" = "car"): Promise<string[]> {
   const client = await getClient();
   const res = await client.execute({
-    sql: "SELECT DISTINCT brand FROM listings ORDER BY brand",
-    args: [],
+    sql: "SELECT DISTINCT brand FROM listings WHERE COALESCE(vehicle_type,'car') = ? ORDER BY brand",
+    args: [vehicleType],
   });
   const raw = (res.rows as unknown as { brand: string }[]).map((r) => r.brand);
   // Deduplicate case-insensitively; prefer the first mixed-case form seen
@@ -532,11 +532,11 @@ export async function getBrands(): Promise<string[]> {
   return [...seen.values()].sort((a, b) => a.localeCompare(b, "fr"));
 }
 
-export async function getModelsForBrand(brand: string): Promise<string[]> {
+export async function getModelsForBrand(brand: string, vehicleType: "car" | "moto" = "car"): Promise<string[]> {
   const client = await getClient();
   const res = await client.execute({
-    sql: "SELECT DISTINCT model FROM listings WHERE brand = ? ORDER BY model",
-    args: [brand],
+    sql: "SELECT DISTINCT model FROM listings WHERE brand = ? AND COALESCE(vehicle_type,'car') = ? ORDER BY model",
+    args: [brand, vehicleType],
   });
   return (res.rows as unknown as { model: string }[]).map((r) => r.model);
 }
@@ -568,11 +568,11 @@ export async function getSavedListingIds(userId: string): Promise<Set<string>> {
   return new Set((res.rows as unknown as { listing_id: string }[]).map((r) => r.listing_id));
 }
 
-export async function countFreshSince(since: string): Promise<number> {
+export async function countFreshSince(since: string, vehicleType: "car" | "moto" = "car"): Promise<number> {
   const client = await getClient();
   const res = await client.execute({
-    sql: "SELECT COUNT(*) n FROM listings WHERE fetched_at > ?",
-    args: [since],
+    sql: "SELECT COUNT(*) n FROM listings WHERE fetched_at > ? AND COALESCE(vehicle_type,'car') = ?",
+    args: [since, vehicleType],
   });
   return Number((res.rows[0] as unknown as { n: number }).n);
 }
