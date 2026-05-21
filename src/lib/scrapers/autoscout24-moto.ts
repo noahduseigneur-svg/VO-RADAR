@@ -89,47 +89,68 @@ function parseAd(ad: As24Ad, make: string, model: string): RawListing | null {
   const id = str(ad.id ?? ad.uuid ?? ad.classifiedId ?? ad.offerId);
   if (!id) return null;
 
-  const brand = str(ad.make ?? ad.brand ?? ad.manufacturer) ?? make;
-  const rawModel = str(ad.model ?? ad.modelName) ?? model;
+  // AS24 nests everything under `vehicle`, `location`, `price`, `seller`, `images`
+  const vehicle = (ad.vehicle ?? {}) as Record<string, unknown>;
+  const location = (ad.location ?? {}) as Record<string, unknown>;
+  const seller = (ad.seller ?? {}) as Record<string, unknown>;
+
+  // Only keep Motorbike entries (skip cars that bleed through)
+  const articleType = str(vehicle.type ?? vehicle.articleType ?? vehicle.vehicleType);
+  if (articleType && !/motorbike|motorcycle|moto/i.test(articleType)) return null;
+
+  const brand = str(vehicle.make ?? vehicle.brand ?? ad.make ?? ad.brand) ?? make;
+  const rawModel = str(vehicle.model ?? vehicle.modelGroup ?? ad.model) ?? model;
   if (!brand || !rawModel) return null;
 
-  const version = str(ad.version ?? ad.trimLevel ?? ad.variant) ?? null;
-  const year = num(ad.firstRegistrationYear ?? ad.year ?? ad.yearOfManufacture) ?? new Date().getFullYear();
-  const mileage = num(ad.mileage ?? ad.km ?? ad.mileageInKm) ?? 0;
+  const version = str(vehicle.modelVersionInput ?? vehicle.variant ?? vehicle.subtitle) ?? null;
 
-  const priceRaw = ad.price ?? ad.priceInfo ?? ad.offerPrice;
+  // Year: may be in vehicle.registrationDate or vehicle.firstRegistrationYear
+  const yearRaw = vehicle.firstRegistrationYear ?? vehicle.registrationYear ?? vehicle.year ?? ad.year;
+  const year = num(yearRaw) ?? new Date().getFullYear();
+
+  // Mileage: formatted string like "32 572 km" — strip non-digits
+  const mileageRaw = str(vehicle.mileageInKm ?? vehicle.mileage ?? ad.mileage);
+  const mileage = mileageRaw ? (Number(mileageRaw.replace(/[^\d]/g, "")) || 0) : 0;
+
+  // Price: object with priceFormatted like "€ 12 188" — strip non-digits
+  const priceObj = (ad.price ?? {}) as Record<string, unknown>;
+  const priceFmt = str(priceObj.priceFormatted ?? priceObj.value ?? priceObj.amount);
   let price = 0;
-  if (typeof priceRaw === "number") price = priceRaw;
-  else if (typeof priceRaw === "object" && priceRaw !== null) {
-    price = num((priceRaw as Record<string, unknown>).value ?? (priceRaw as Record<string, unknown>).amount) ?? 0;
-  } else if (typeof priceRaw === "string") price = num(priceRaw) ?? 0;
+  if (typeof ad.price === "number") price = ad.price;
+  else if (priceFmt) price = Number(priceFmt.replace(/[^\d]/g, "")) || 0;
   if (!price || price < 200) return null;
 
-  const fuelRaw = str(ad.fuel ?? ad.fuelCategory ?? ad.fuelType);
-  const gearboxRaw = str(ad.transmission ?? ad.gearbox ?? ad.gearType);
-  const power = num(ad.power ?? ad.horsePower ?? ad.powerInHp) ?? null;
-  const cylindree = num(ad.displacement ?? ad.cubicCapacity ?? ad.engineCapacity) ?? null;
-  const categoryRaw = str(ad.vehicleCategory ?? ad.category ?? ad.bodyType);
+  const fuelRaw = str(vehicle.fuel ?? vehicle.fuelType ?? vehicle.energy);
+  const gearboxRaw = str(vehicle.transmission ?? vehicle.gearbox);
+  const powerRaw = str(vehicle.powerInKw ?? vehicle.power ?? vehicle.horsePower);
+  const power = powerRaw ? (num(powerRaw) ? Math.round((num(powerRaw) ?? 0) * 1.36) : null) : null; // kW → HP approx
+  // Displacement: "1 498 cm³" → digits only
+  const displacementRaw = str(vehicle.engineDisplacementInCCM ?? vehicle.displacement ?? vehicle.cubicCapacity);
+  const cylindree = displacementRaw ? (Number(displacementRaw.replace(/[^\d]/g, "")) || null) : null;
 
-  const sellerRaw = str(ad.sellerType ?? ad.ownerType ?? ad.sellerCategory);
+  // Location
+  const region = str(location.city ?? location.region ?? location.countryCode) ?? null;
+  const postalCode = str(location.zip ?? location.postalCode) ?? null;
+
+  // Seller type: "Dealer" or "Private"
+  const sellerType = str(seller.type ?? (seller.dealer ? "Dealer" : "Private") ?? ad.sellerType);
   const sellerKind: "pro" | "particulier" =
-    sellerRaw && /dealer|pro|profes/i.test(sellerRaw) ? "pro" : "particulier";
+    sellerType && /dealer|pro/i.test(sellerType) ? "pro" : "particulier";
 
-  const region = str(ad.location ?? ad.city ?? ad.country) ?? null;
-  const postalCode = str(ad.zip ?? ad.postalCode ?? ad.zipCode) ?? null;
-
-  const photosRaw = ad.images ?? ad.photos ?? ad.imageUrls ?? [];
-  const photoUrls: string[] = Array.isArray(photosRaw)
-    ? (photosRaw as unknown[]).slice(0, 10).map((img) => {
-        if (typeof img === "string") return img;
-        if (img && typeof img === "object") {
-          const o = img as Record<string, unknown>;
-          const u = o.url ?? o.uri ?? o.src ?? o.large ?? o.medium;
-          return typeof u === "string" ? u : "";
-        }
-        return "";
-      }).filter(Boolean)
-    : [];
+  // Images: array of URL strings or objects
+  const imagesRaw = ad.images ?? ad.photos ?? [];
+  const photoUrls: string[] = (() => {
+    if (!Array.isArray(imagesRaw) || imagesRaw.length === 0) return [];
+    return (imagesRaw as unknown[]).slice(0, 10).map((img) => {
+      if (typeof img === "string") return img.split("?")[0]; // strip query params
+      if (img && typeof img === "object") {
+        const o = img as Record<string, unknown>;
+        const u = o.url ?? o.uri ?? o.src ?? o.href ?? o.large ?? o.medium;
+        return typeof u === "string" ? u.split("?")[0] : "";
+      }
+      return "";
+    }).filter((u) => u && u.startsWith("http"));
+  })();
   const photoUrl = photoUrls[0] ?? null;
   const photosJson = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
 
@@ -148,13 +169,13 @@ function parseAd(ad: As24Ad, make: string, model: string): RawListing | null {
     engine_designation: null,
     body_type: "inconnu",
     vehicle_type: "moto",
-    moto_type: detectMotoType(categoryRaw, title),
-    cylindree_cc: cylindree ? Math.round(cylindree) : null,
+    moto_type: detectMotoType(str(vehicle.bodyType ?? vehicle.type), title),
+    cylindree_cc: cylindree,
     year: Math.round(year),
     mileage_km: Math.round(Math.max(0, mileage)),
     fuel: mapFuel(fuelRaw),
     gearbox: mapGearbox(gearboxRaw),
-    power_hp: power ? Math.round(power) : null,
+    power_hp: power ?? null,
     price_eur: Math.round(price),
     seller_kind: sellerKind,
     postal_code: postalCode,
@@ -162,7 +183,7 @@ function parseAd(ad: As24Ad, make: string, model: string): RawListing | null {
     photos_count: photoUrls.length,
     photo_url: photoUrl,
     photos_json: photosJson,
-    posted_at: String(ad.createdAt ?? ad.firstPublicationDate ?? new Date().toISOString()),
+    posted_at: new Date().toISOString(),
   };
 }
 
@@ -206,9 +227,9 @@ function extractAds(data: unknown): As24Ad[] {
 }
 
 async function fetchPage(make: string, model: string, page: number): Promise<RawListing[]> {
+  // atype=M → motorbikes on AutoScout24 (atype=C = cars)
   const url = `${BASE}/lst/${make}/${model}?` + new URLSearchParams({
-    vehicle_type: "M",
-    atype: "C",
+    atype: "M",
     desc: "0",
     page: String(page),
   }).toString();
