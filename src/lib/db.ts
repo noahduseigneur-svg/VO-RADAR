@@ -443,7 +443,10 @@ export async function queryListings(filters: ListingFilters = {}): Promise<Listi
     where.push("critair >= 0 AND critair <= @max_critair");
     params.max_critair = filters.max_critair;
   }
-  if (filters.vehicle_type) { where.push("COALESCE(vehicle_type,'car') = @vehicle_type"); params.vehicle_type = filters.vehicle_type; }
+  // Par défaut : voitures uniquement. Passer vehicle_type="moto" pour les motos.
+  const vt = filters.vehicle_type ?? "car";
+  where.push("COALESCE(vehicle_type,'car') = @vehicle_type");
+  params.vehicle_type = vt;
   if (filters.moto_type)    { where.push("moto_type = @moto_type");    params.moto_type = filters.moto_type; }
   if (filters.min_cylindree !== undefined) { where.push("cylindree_cc >= @min_cc"); params.min_cc = filters.min_cylindree; }
   if (filters.max_cylindree !== undefined) { where.push("cylindree_cc <= @max_cc"); params.max_cc = filters.max_cylindree; }
@@ -583,11 +586,11 @@ export async function statsForDashboard(): Promise<{
 }> {
   const client = await getClient();
   const stmts: InStatement[] = [
-    { sql: "SELECT COUNT(*) n FROM listings", args: [] },
-    { sql: "SELECT COUNT(*) n FROM listings WHERE posted_at > datetime('now','-24 hours')", args: [] },
-    { sql: "SELECT COUNT(*) n FROM listings WHERE score >= 80", args: [] },
-    { sql: "SELECT COALESCE(AVG(score),0) a FROM listings", args: [] },
-    { sql: "SELECT brand, COUNT(*) n FROM listings GROUP BY brand ORDER BY n DESC LIMIT 8", args: [] },
+    { sql: "SELECT COUNT(*) n FROM listings WHERE COALESCE(vehicle_type,'car') = 'car'", args: [] },
+    { sql: "SELECT COUNT(*) n FROM listings WHERE COALESCE(vehicle_type,'car') = 'car' AND posted_at > datetime('now','-24 hours')", args: [] },
+    { sql: "SELECT COUNT(*) n FROM listings WHERE COALESCE(vehicle_type,'car') = 'car' AND score >= 80", args: [] },
+    { sql: "SELECT COALESCE(AVG(score),0) a FROM listings WHERE COALESCE(vehicle_type,'car') = 'car'", args: [] },
+    { sql: "SELECT brand, COUNT(*) n FROM listings WHERE COALESCE(vehicle_type,'car') = 'car' GROUP BY brand ORDER BY n DESC LIMIT 8", args: [] },
   ];
   const results = await client.batch(stmts, "read");
   const total = Number((results[0].rows[0] as unknown as { n: number }).n);
