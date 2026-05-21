@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { queryListings, statsForDashboard } from "@/lib/db";
 import { ListingCard } from "@/components/listing-card";
 import { ScrapeStatusWidget } from "@/components/scrape-status";
+import { AnimatedNumber } from "@/components/animated-number";
 
 export default async function Dashboard() {
   const user = await requireUser();
@@ -34,10 +35,18 @@ export default async function Dashboard() {
       </header>
 
       <section className="grid gap-3 md:grid-cols-4">
-        <Kpi icon={<Activity size={16} />} label="Annonces suivies" value={stats.total.toLocaleString("fr-FR")} />
-        <Kpi icon={<Sparkles size={16} />} label="Nouvelles (24h)" value={stats.fresh_24h.toLocaleString("fr-FR")} accent="rose" />
-        <Kpi icon={<Flame size={16} />} label="Pépites détectées" value={stats.hot_deals.toLocaleString("fr-FR")} accent="emerald" />
-        <Kpi icon={<TrendingUp size={16} />} label="Score moyen" value={`${stats.avg_score}/100`} />
+        <Kpi icon={<Activity size={16} />} label="Annonces suivies">
+          <AnimatedNumber value={stats.total} />
+        </Kpi>
+        <Kpi icon={<Sparkles size={16} />} label="Nouvelles (24h)" accent="rose">
+          <AnimatedNumber value={stats.fresh_24h} />
+        </Kpi>
+        <Kpi icon={<Flame size={16} />} label="Pépites détectées" accent="emerald">
+          <AnimatedNumber value={stats.hot_deals} />
+        </Kpi>
+        <Kpi icon={<TrendingUp size={16} />} label="Score moyen">
+          <AnimatedNumber value={stats.avg_score} suffix="/100" />
+        </Kpi>
       </section>
 
       <section className="mt-8">
@@ -85,17 +94,17 @@ export default async function Dashboard() {
   );
 }
 
-function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: "rose" | "emerald" }) {
+function Kpi({ icon, label, children, accent }: { icon: React.ReactNode; label: string; children: React.ReactNode; accent?: "rose" | "emerald" }) {
   const borderCls = accent === "rose" ? "border-rose-500/30" : accent === "emerald" ? "border-emerald-500/30" : "border-[var(--border)]";
   const bgAccentCls = accent === "rose" ? "bg-rose-500/10" : accent === "emerald" ? "bg-emerald-500/10" : "bg-[var(--card)]";
   const iconBgCls = accent === "rose" ? "bg-rose-500/20 text-rose-400" : accent === "emerald" ? "bg-emerald-500/20 text-emerald-400" : "bg-neutral-700/50 text-neutral-300";
   const valueCls = accent === "rose" ? "text-rose-300" : accent === "emerald" ? "text-emerald-300" : "text-neutral-100";
   return (
-    <div className={`rounded-xl border ${borderCls} ${bgAccentCls} p-5`}>
+    <div className={`rounded-xl border ${borderCls} ${bgAccentCls} p-5 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-black/30`}>
       <div className={`inline-flex items-center justify-center rounded-lg p-2 ${iconBgCls}`}>
         {icon}
       </div>
-      <div className={`mt-3 text-3xl font-bold tabular-nums ${valueCls}`}>{value}</div>
+      <div className={`mt-3 text-3xl font-bold tabular-nums ${valueCls}`}>{children}</div>
       <div className="mt-1 text-xs uppercase tracking-wide text-neutral-500">{label}</div>
     </div>
   );

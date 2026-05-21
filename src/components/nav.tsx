@@ -41,11 +41,16 @@ export function SideNav({ dealership, unseen }: { dealership: string; unseen: nu
               key={it.href}
               href={it.href}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition",
-                active ? "bg-neutral-800/80 text-white" : "text-neutral-400 hover:bg-neutral-800/40 hover:text-neutral-200",
+                "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all",
+                active
+                  ? "bg-neutral-800 text-white shadow-sm"
+                  : "text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-200",
               )}
             >
-              <Icon size={16} />
+              {active && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-full bg-rose-500" />
+              )}
+              <Icon size={16} className={active ? "text-rose-400" : ""} />
               <span className="flex-1">{it.label}</span>
               {it.badge && unseen > 0 && (
                 <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">

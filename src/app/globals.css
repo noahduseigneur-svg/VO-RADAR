@@ -31,3 +31,56 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #2a2a31; border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a44; }
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: #f43f5e33;
+  color: #ffd6de;
+}
+
+:focus-visible {
+  outline: 2px solid #f43f5e80;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Default transition on interactive elements */
+button, a, [role="button"] {
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shimmer animation for skeletons */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1a1a1f 25%, #252530 50%, #1a1a1f 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* Smooth card entry */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.35s ease-out both;
+}
+
+/* Stagger for grids */
+.fade-in-up:nth-child(2) { animation-delay: 40ms; }
+.fade-in-up:nth-child(3) { animation-delay: 80ms; }
+.fade-in-up:nth-child(4) { animation-delay: 120ms; }
+.fade-in-up:nth-child(5) { animation-delay: 160ms; }
+.fade-in-up:nth-child(6) { animation-delay: 200ms; }
+.fade-in-up:nth-child(n+7) { animation-delay: 240ms; }

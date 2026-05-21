@@ -90,7 +90,7 @@ export function ListingCard({
   const sourceLogoBadge = listing.source ? SOURCE_LOGO_BADGE[listing.source.toLowerCase()] : null;
   const brandColor = BRAND_COLORS[listing.brand?.toUpperCase() ?? ""] ?? "bg-gradient-to-br from-slate-600 to-slate-800";
   return (
-    <article className="group relative rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden transition hover:border-neutral-700">
+    <article className="group relative rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden transition-all duration-200 hover:border-neutral-600 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/40 fade-in-up">
       {isNew && (
         <span className="absolute -top-2 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
           <Sparkles size={9} /> Nouveau
@@ -104,7 +104,7 @@ export function ListingCard({
           <img
             src={listing.photo_url}
             alt={listing.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               const img = e.target as HTMLImageElement;
@@ -201,13 +201,17 @@ export function ListingCard({
           <div className="text-xs text-neutral-500">
             Cote : {fmtEUR(listing.market_value_eur)}
             {listing.comparables_n >= 3 && listing.comparables_median_eur && (
-              <span className="ml-1 text-neutral-600">· {listing.comparables_n} comp. médiane {fmtEUR(listing.comparables_median_eur)}</span>
+              <span className="ml-1 text-neutral-600">· {listing.comparables_n} comp.</span>
             )}
           </div>
         </div>
-        <div className={`text-right text-sm font-medium ${gain > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+        <div className={`rounded-lg px-2.5 py-1.5 text-right text-sm font-semibold tabular-nums ${
+          gain > 0
+            ? "bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20"
+            : "bg-rose-500/15 text-rose-300 ring-1 ring-rose-500/20"
+        }`}>
           {gain > 0 ? "+" : ""}{fmtEUR(gain)}
-          <div className="text-[10px] uppercase tracking-wide text-neutral-500">{listing.delta_pct}%</div>
+          <div className="text-[10px] font-medium opacity-70">{listing.delta_pct}%</div>
         </div>
       </div>
 
