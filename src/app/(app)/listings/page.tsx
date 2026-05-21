@@ -35,7 +35,7 @@ export default async function ListingsPage(props: {
     max_price?: string; min_price?: string; search?: string; hide_risky?: string;
     max_critair?: string; since_last?: string; region?: string;
     max_km?: string; min_year?: string; max_year?: string;
-    seller_kind?: string; sort?: string; source?: string;
+    seller_kind?: string; sort?: string; source?: string; country?: string;
   }>;
 }) {
   const user = await requireUser();
@@ -59,6 +59,7 @@ export default async function ListingsPage(props: {
     min_year: sp.min_year ? Number(sp.min_year) : undefined,
     max_year: sp.max_year ? Number(sp.max_year) : undefined,
     region: sp.region || undefined,
+    country: sp.country || undefined,
     source: sp.source || undefined,
     seller_kind: sp.seller_kind || undefined,
     search: sp.search,
@@ -88,7 +89,7 @@ export default async function ListingsPage(props: {
   const freshSinceLast = prevVisit ? await countFreshSince(prevVisit) : 0;
 
   const activeFilterCount = [
-    sp.brand, sp.fuel, sp.body_type, sp.region, sp.seller_kind, sp.source,
+    sp.brand, sp.fuel, sp.body_type, sp.region, sp.seller_kind, sp.source, sp.country,
     sp.max_km, sp.min_year, sp.max_year, sp.max_price, sp.min_price,
     sp.min_score && sp.min_score !== "0" ? sp.min_score : null,
     sp.hide_risky === "1" ? "1" : null,
@@ -146,6 +147,44 @@ export default async function ListingsPage(props: {
 
       <form method="GET" className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
         {sinceLast && <input type="hidden" name="since_last" value="1" />}
+
+        {/* Filtre pays — pills visuels */}
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-neutral-500 mr-1">Pays :</span>
+          {[
+            { value: "", label: "Tous", flag: "🌍" },
+            { value: "france", label: "France", flag: "🇫🇷" },
+            { value: "etranger", label: "Étranger", flag: "🌐" },
+            { value: "Belgique", label: "BE", flag: "🇧🇪" },
+            { value: "Allemagne", label: "DE", flag: "🇩🇪" },
+            { value: "Pays-Bas", label: "NL", flag: "🇳🇱" },
+            { value: "Luxembourg", label: "LU", flag: "🇱🇺" },
+            { value: "Espagne", label: "ES", flag: "🇪🇸" },
+            { value: "Italie", label: "IT", flag: "🇮🇹" },
+          ].map(({ value, label, flag }) => {
+            const active = (sp.country ?? "") === value;
+            const params = new URLSearchParams(
+              Object.fromEntries(Object.entries(sp).filter(([k, v]) => k !== "country" && v != null && v !== "")) as Record<string, string>
+            );
+            if (value) params.set("country", value);
+            return (
+              <Link
+                key={value}
+                href={`/listings?${params.toString()}`}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? "bg-rose-500 text-white"
+                    : "border border-[var(--border)] bg-[var(--background)] text-neutral-400 hover:border-neutral-500 hover:text-white"
+                }`}
+              >
+                {flag} {label}
+                {active && value && (
+                  <span className="ml-0.5 opacity-70">×</span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
 
         {/* Row 1 — search + brand + carburant + carrosserie + score */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-5">

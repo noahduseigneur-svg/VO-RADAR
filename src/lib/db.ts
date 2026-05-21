@@ -333,6 +333,7 @@ export interface ListingFilters {
   fuel?: string;
   seller_kind?: string;
   region?: string;
+  country?: string; // "france" | "etranger" | "Belgique" | "Allemagne" | etc.
   source?: string;
   search?: string;
   body_type?: string;
@@ -358,6 +359,19 @@ export async function queryListings(filters: ListingFilters = {}): Promise<Listi
   if (filters.fuel)        { where.push("fuel = @fuel");              params.fuel = filters.fuel; }
   if (filters.seller_kind) { where.push("seller_kind = @seller_kind"); params.seller_kind = filters.seller_kind; }
   if (filters.region)      { where.push("region = @region");          params.region = filters.region; }
+  if (filters.country) {
+    const foreign = [...FOREIGN_REGIONS];
+    if (filters.country === "france") {
+      where.push(`region NOT IN (${foreign.map((_, i) => `@fr${i}`).join(",")})`);
+      foreign.forEach((r, i) => { params[`fr${i}`] = r; });
+    } else if (filters.country === "etranger") {
+      where.push(`region IN (${foreign.map((_, i) => `@fe${i}`).join(",")})`);
+      foreign.forEach((r, i) => { params[`fe${i}`] = r; });
+    } else {
+      // pays spécifique ex: "Belgique"
+      where.push("region = @country"); params.country = filters.country;
+    }
+  }
   if (filters.source)      { where.push("source = @source");          params.source = filters.source; }
   if (filters.search) {
     where.push("(title LIKE @search OR brand LIKE @search OR model LIKE @search)");
