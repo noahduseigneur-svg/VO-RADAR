@@ -65,6 +65,42 @@ export default function Landing() {
         </div>
         <p className="mt-4 text-xs text-neutral-500">14 jours gratuits · sans carte bancaire · résiliable en 1 clic</p>
 
+        {/* Photo hero — parc VO avec overlay stats */}
+        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-[var(--border)] shadow-2xl shadow-rose-500/10 relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=1200&q=80&auto=format&fit=crop"
+            alt="Parc automobile VO"
+            className="w-full h-56 md:h-72 object-cover object-center"
+          />
+          {/* Overlay dégradé sombre */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          {/* Stats flottantes en bas */}
+          <div className="absolute bottom-0 inset-x-0 flex items-end justify-between px-6 pb-5">
+            <div className="flex items-center gap-6">
+              <div className="text-left">
+                <p className="text-2xl font-bold text-white tabular-nums">6 000+</p>
+                <p className="text-xs text-neutral-300">annonces analysées</p>
+              </div>
+              <div className="h-8 w-px bg-white/20" />
+              <div className="text-left">
+                <p className="text-2xl font-bold text-white tabular-nums">9</p>
+                <p className="text-xs text-neutral-300">sources actives</p>
+              </div>
+              <div className="h-8 w-px bg-white/20" />
+              <div className="text-left">
+                <p className="text-2xl font-bold text-emerald-400 tabular-nums">−15%</p>
+                <p className="text-xs text-neutral-300">vs cote sur les pépites</p>
+              </div>
+            </div>
+            {/* Pill "live" */}
+            <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm border border-white/10">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs text-neutral-300">Mise à jour en continu</span>
+            </div>
+          </div>
+        </div>
+
         {/* Mockup produit */}
         <div className="mx-auto mt-14 max-w-2xl overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] text-left shadow-2xl shadow-rose-500/5">
           {/* Barre de fenêtre */}
@@ -222,7 +258,22 @@ export default function Landing() {
               Tester avec mes données <ArrowRight size={16} />
             </Link>
           </div>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+            {/* Photo BMW */}
+            <div className="relative h-40 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&q=80&auto=format&fit=crop"
+                alt="BMW Série 3"
+                className="w-full h-full object-cover object-center"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[var(--card)] via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-4 flex items-center gap-2">
+                <span className="rounded bg-rose-500/90 px-2 py-0.5 text-xs font-bold text-white">À éviter</span>
+                <span className="text-xs text-neutral-300">Sous-marge de 50 €</span>
+              </div>
+            </div>
+            <div className="p-6">
             <div className="mb-4 text-xs uppercase tracking-wide text-neutral-500">Exemple — BMW Série 3, 2021, 65 000 km</div>
             <div className="grid grid-cols-2 gap-3">
               <MiniCard label="Prix annonce" value="18 500 €" neutral />
@@ -237,6 +288,7 @@ export default function Landing() {
             <p className="mt-3 text-xs text-neutral-500">
               Coûts configurés : 250 € transport · 580 € recon · 300 € prépa/CT · 400 € frais fixes · marge cible 1 000 €
             </p>
+            </div>
           </div>
         </div>
       </section>
