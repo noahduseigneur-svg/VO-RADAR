@@ -48,12 +48,15 @@ export async function PricingProPanel({ listing }: { listing: Listing }) {
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <PriceCard label="Prix vendeur" value={fmtEUR(listing.price_eur)} muted />
-        <PriceCard
-          label="Prix juste estimé"
-          value={fmtEUR(result.fair_price_eur)}
-          highlight
-          sub={`P25 ${fmtEUR(result.p25_eur)} — P75 ${fmtEUR(result.p75_eur)}`}
-        />
+        <div className="flex flex-col gap-2">
+          <PriceCard
+            label="Prix juste estimé"
+            value={fmtEUR(result.fair_price_eur)}
+            highlight
+            sub={`P25 ${fmtEUR(result.p25_eur)} — P75 ${fmtEUR(result.p75_eur)}`}
+          />
+          <ConfidenceBadge n={listing.comparables_n} />
+        </div>
         <PriceCard
           label="Marge / écart"
           value={`${dealRoom > 0 ? "+" : ""}${fmtEUR(dealRoom)}`}
@@ -146,6 +149,19 @@ function PriceCard({ label, value, sub, accent, highlight, muted }: {
       <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${accentCls}`}>{value}</div>
       {sub && <div className="mt-0.5 text-[11px] text-neutral-500">{sub}</div>}
     </div>
+  );
+}
+
+function ConfidenceBadge({ n }: { n: number }) {
+  const conf =
+    n >= 10 ? { label: "Confiance élevée", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" } :
+    n >= 5  ? { label: "Confiance bonne",  color: "text-lime-400 border-lime-500/30 bg-lime-500/10" } :
+    n >= 2  ? { label: "Données correctes", color: "text-amber-400 border-amber-500/30 bg-amber-500/10" } :
+              { label: "Données limitées", color: "text-neutral-400 border-neutral-600 bg-neutral-800" };
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${conf.color}`}>
+      {n} comp. · {conf.label}
+    </span>
   );
 }
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertCircle, AlertTriangle, CheckCircle, CheckCircle2, Info, Search, Sparkles, TrendingDown, TrendingUp, XCircle, Zap } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle, Info, Search, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import type { Listing } from "@/lib/types";
 import { identifyEngine } from "@/lib/reliability";
 import { evaluateCritAir } from "@/lib/critair";
@@ -193,12 +193,17 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
       {km.score_adjustment !== 0 && (
         <section className={`rounded-xl border p-6 ${
           km.status === "suspicious_low" || km.status === "very_high"
-            ? "border-rose-500/30 bg-rose-500/5"
-            : "border-[var(--border)] bg-[var(--card)]"
+            ? "border-rose-500/20 bg-rose-500/5"
+            : km.score_adjustment > 0
+            ? "border-emerald-500/20 bg-emerald-500/5"
+            : "border-neutral-700 bg-neutral-800/50"
         }`}>
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
-            {km.status === "suspicious_low" ? <AlertTriangle size={16} className="text-rose-400" />
-             : <Info size={16} />}
+            {km.status === "suspicious_low" || km.status === "very_high"
+              ? <AlertCircle size={16} className="text-rose-400" />
+              : km.score_adjustment > 0
+              ? <CheckCircle size={16} className="text-emerald-400" />
+              : <Info size={16} className="text-neutral-400" />}
             Analyse kilométrage
           </h2>
           <p className="text-sm text-neutral-300">{km.note}</p>
@@ -212,9 +217,20 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
 
       {/* Comparables */}
       {comp.n >= 3 && comp.median_eur ? (
-        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <section className={`rounded-xl border p-6 ${
+          listing.price_eur < comp.median_eur
+            ? "border-emerald-500/20 bg-emerald-500/5"
+            : listing.price_eur > comp.median_eur * 1.1
+            ? "border-rose-500/20 bg-rose-500/5"
+            : "border-neutral-700 bg-neutral-800/50"
+        }`}>
           <h2 className="mb-3 flex items-center gap-2 font-semibold">
-            <Search size={16} className="text-neutral-400" />
+            {listing.price_eur < comp.median_eur
+              ? <CheckCircle size={16} className="text-emerald-400" />
+              : listing.price_eur > comp.median_eur * 1.1
+              ? <AlertCircle size={16} className="text-rose-400" />
+              : <Search size={16} className="text-neutral-400" />}
+
             Comparables réels ({comp.n} annonces similaires)
           </h2>
           <div className="grid grid-cols-3 gap-3 text-sm">
@@ -246,7 +262,7 @@ export async function InsightsPanel({ listing }: { listing: Listing }) {
           </details>
         </section>
       ) : (
-        <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <section className="rounded-xl border border-neutral-700 bg-neutral-800/50 p-6">
           <h2 className="mb-2 flex items-center gap-2 font-semibold">
             <Info size={16} className="text-neutral-400" /> Comparables
           </h2>
