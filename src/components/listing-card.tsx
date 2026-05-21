@@ -10,6 +10,7 @@ import { DealStatusButton } from "./deal-status";
 import { fmtDate, fmtEUR, fmtKm } from "@/lib/utils";
 import type { Listing } from "@/lib/types";
 import type { DealStatus } from "@/lib/db";
+import { daysOnMarket } from "@/lib/db";
 
 const COUNTRY_BADGES: Record<string, { flag: string; short: string; color: string }> = {
   "Belgique":   { flag: "🇧🇪", short: "BE", color: "bg-yellow-500/20 text-yellow-300" },
@@ -73,11 +74,15 @@ export function ListingCard({
   savedInitial = false,
   dealStatus = null,
   isNew = false,
+  onSelect,
+  selected = false,
 }: {
   listing: Listing;
   savedInitial?: boolean;
   dealStatus?: DealStatus | null;
   isNew?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
+  selected?: boolean;
 }) {
   const gain = listing.delta_eur;
   const countryBadge = listing.region ? COUNTRY_BADGES[listing.region] : null;
@@ -125,11 +130,25 @@ export function ListingCard({
           </div>
         )}
         {/* Badge pays en bas à gauche */}
-        {countryBadge && (
+        {countryBadge && !onSelect && (
           <div className="absolute bottom-2 left-2">
             <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${countryBadge.color} backdrop-blur-sm`}>
               {countryBadge.flag} {countryBadge.short}
             </span>
+          </div>
+        )}
+        {/* Checkbox de sélection bulk */}
+        {onSelect && (
+          <div className="absolute bottom-2 left-2 z-10">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => onSelect(listing.id, e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 cursor-pointer accent-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={selected ? { opacity: 1 } : undefined}
+              aria-label="Sélectionner cette annonce"
+            />
           </div>
         )}
       </div>
@@ -193,7 +212,24 @@ export function ListingCard({
       </div>
 
       <footer className="mt-3 flex items-center justify-between text-xs text-neutral-500">
-        <span>{fmtDate(listing.posted_at)}</span>
+        <span className="flex items-center gap-1.5">
+          {fmtDate(listing.posted_at)}
+          {(() => {
+            const days = daysOnMarket(listing);
+            if (days < 3) return null;
+            const cls =
+              days > 30
+                ? "bg-rose-500/20 text-rose-400"
+                : days >= 15
+                ? "bg-amber-500/20 text-amber-300"
+                : "bg-neutral-700/60 text-neutral-400";
+            return (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>
+                {days}j
+              </span>
+            );
+          })()}
+        </span>
         <div className="flex items-center gap-2">
           <CompareCheckbox listingId={listing.id} />
           <Link href={`/listings/${listing.id}`} className="font-medium text-neutral-300 hover:text-white">

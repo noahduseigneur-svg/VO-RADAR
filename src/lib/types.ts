@@ -24,17 +24,18 @@ export interface Listing {
   postal_code: string | null;
   region: string | null;
   photos_count: number;
-  photo_url: string | null;  // URL de la 1ère photo (pour l'affichage)
-  photos_json?: string | null; // JSON array de toutes les photo URLs
-  posted_at: string; // ISO
-  fetched_at: string; // ISO
-  engine_designation: string | null; // ex: "1.5 BlueHDi 130", "TCe 90"
+  photo_url: string | null;
+  photos_json?: string | null;
+  posted_at: string;
+  fetched_at: string;
+  first_seen_at?: string | null; // première fois que l'annonce a été scrapée (optionnel pour les scrapers)
+  engine_designation: string | null;
   body_type: BodyType;
   // computed
   market_value_eur: number;
   delta_eur: number;
   delta_pct: number;
-  score: number; // 0..100
+  score: number;
   engine_rating: ReliabilityRating;
   critair: CritAirClass;
   comparables_n: number;
@@ -51,7 +52,7 @@ export interface AlertRule {
   max_mileage_km: number | null;
   min_year: number | null;
   fuel: Fuel | null;
-  min_score: number; // default 70
+  min_score: number;
   region: string | null;
   active: 0 | 1;
   created_at: string;
@@ -68,5 +69,7 @@ export interface User {
   subscription_status: "trialing" | "active" | "past_due" | "canceled" | "incomplete";
   trial_ends_at: string;
   created_at: string;
-  digest_enabled: number; // 1 = activé, 0 = désactivé
+  digest_enabled: number;     // 1 = activé, 0 = désactivé
+  notif_price_drop: number;   // 1 = alerte baisse de prix
+  notif_listing_gone: number; // 1 = alerte annonce disparue
 }

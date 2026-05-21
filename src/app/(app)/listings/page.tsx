@@ -3,7 +3,7 @@ import { Download, Sparkles } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { dealStatusMapForListings, getDistinctRegions, getDistinctSources, getRegionStats, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince, FOREIGN_REGIONS, getModelsForBrand, getSavedSearches } from "@/lib/db";
 import type { ListingSort } from "@/lib/db";
-import { ListingCard } from "@/components/listing-card";
+import { ListingsWithBulk } from "@/components/listings-with-bulk";
 import { SavedSearchesBar } from "@/components/saved-searches-bar";
 
 const FUELS = ["essence", "diesel", "hybride", "electrique", "gpl"];
@@ -360,17 +360,12 @@ export default async function ListingsPage(props: {
             : "Aucune annonce ne correspond à ces filtres."}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {listings.map((l) => (
-            <ListingCard
-              key={l.id}
-              listing={l}
-              savedInitial={savedSet.has(l.id)}
-              dealStatus={dealMap.get(l.id) ?? null}
-              isNew={prevVisit ? l.fetched_at > prevVisit : false}
-            />
-          ))}
-        </div>
+        <ListingsWithBulk
+          listings={listings}
+          savedIds={Array.from(savedSet)}
+          dealStatuses={Object.fromEntries(dealMap) as Record<string, import("@/lib/db").DealStatus>}
+          prevVisit={prevVisit ?? null}
+        />
       )}
     </div>
   );

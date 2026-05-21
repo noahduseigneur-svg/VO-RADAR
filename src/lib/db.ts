@@ -29,6 +29,10 @@ async function getClient(): Promise<Client> {
 }
 
 async function migrate(client: Client): Promise<void> {
+  // WAL mode + busy timeout so multiple build workers don't deadlock
+  await client.execute({ sql: "PRAGMA journal_mode=WAL", args: [] }).catch(() => {});
+  await client.execute({ sql: "PRAGMA busy_timeout=10000", args: [] }).catch(() => {});
+
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -213,16 +217,31 @@ async function migrate(client: Client): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_saved_searches_user ON saved_searches(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS deal_activities (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_deal_activities ON deal_activities(user_id, listing_id, created_at DESC);
   `);
 
   // Migrations additives — ignorent l'erreur "duplicate column" si déjà appliquées
   const additives = [
     "ALTER TABLE users ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE users ADD COLUMN notif_price_drop INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE users ADD COLUMN notif_listing_gone INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE deal_pipeline ADD COLUMN price_eur_paid INTEGER",
     "ALTER TABLE deal_pipeline ADD COLUMN fees_eur INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE deal_pipeline ADD COLUMN price_sold_eur INTEGER",
     "ALTER TABLE deal_pipeline ADD COLUMN sold_at TEXT",
+    "ALTER TABLE deal_pipeline ADD COLUMN won_at TEXT",
     "ALTER TABLE listings ADD COLUMN photos_json TEXT",
+    "ALTER TABLE listings ADD COLUMN first_seen_at TEXT",
   ];
   for (const sql of additives) {
     await client.execute({ sql, args: [] }).catch(() => {});
@@ -277,13 +296,13 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
       sql: `INSERT INTO listings (
         id, source, source_id, url, title, brand, model, version, engine_designation, body_type,
         year, mileage_km, fuel, gearbox, power_hp, price_eur, seller_kind,
-        postal_code, region, photos_count, photo_url, photos_json, posted_at, fetched_at,
+        postal_code, region, photos_count, photo_url, photos_json, posted_at, fetched_at, first_seen_at,
         market_value_eur, delta_eur, delta_pct, score,
         engine_rating, critair, comparables_n, comparables_median_eur
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?
       )
@@ -291,6 +310,7 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         price_eur = excluded.price_eur,
         mileage_km = excluded.mileage_km,
         fetched_at = excluded.fetched_at,
+        first_seen_at = COALESCE(listings.first_seen_at, excluded.first_seen_at),
         photo_url = COALESCE(excluded.photo_url, listings.photo_url),
         photos_json = COALESCE(excluded.photos_json, listings.photos_json),
         market_value_eur = excluded.market_value_eur,
@@ -306,7 +326,7 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         r.version ?? null, r.engine_designation ?? null, r.body_type,
         r.year, r.mileage_km, r.fuel, r.gearbox, r.power_hp ?? null,
         r.price_eur, r.seller_kind, r.postal_code ?? null, r.region ?? null,
-        r.photos_count, r.photo_url ?? null, r.photos_json ?? null, r.posted_at, r.fetched_at,
+        r.photos_count, r.photo_url ?? null, r.photos_json ?? null, r.posted_at, r.fetched_at, r.fetched_at,
         r.market_value_eur, r.delta_eur, r.delta_pct, r.score,
         r.engine_rating, r.critair, r.comparables_n, r.comparables_median_eur ?? null,
       ],
@@ -943,19 +963,21 @@ export async function setDealStatus(
 ): Promise<void> {
   const client = await getClient();
   await client.execute({
-    sql: `INSERT INTO deal_pipeline (user_id, listing_id, status, note, target_price_eur, max_offer_eur, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    sql: `INSERT INTO deal_pipeline (user_id, listing_id, status, note, target_price_eur, max_offer_eur, updated_at, won_at)
+          VALUES (?, ?, ?, ?, ?, ?, datetime('now'), CASE WHEN ? = 'won' THEN datetime('now') ELSE NULL END)
           ON CONFLICT(user_id, listing_id) DO UPDATE SET
             status = excluded.status,
             note = COALESCE(excluded.note, deal_pipeline.note),
             target_price_eur = COALESCE(excluded.target_price_eur, deal_pipeline.target_price_eur),
             max_offer_eur = COALESCE(excluded.max_offer_eur, deal_pipeline.max_offer_eur),
+            won_at = CASE WHEN excluded.status = 'won' THEN COALESCE(deal_pipeline.won_at, datetime('now')) ELSE deal_pipeline.won_at END,
             updated_at = datetime('now')`,
     args: [
       userId, listingId, status,
       fields.note ?? null,
       fields.target_price_eur ?? null,
       fields.max_offer_eur ?? null,
+      status,
     ],
   });
 }
@@ -1242,6 +1264,15 @@ export async function rawQuery<T = Record<string, unknown>>(sql: string, args: (
   return res.rows as unknown as T[];
 }
 
+// ── Password change ─────────────────────────────────────────────────────────
+export async function updatePassword(userId: string, newHash: string): Promise<void> {
+  const client = await getClient();
+  await client.execute({
+    sql: "UPDATE users SET password_hash = ? WHERE id = ?",
+    args: [newHash, userId],
+  });
+}
+
 export async function getFreshListingIds(since: string): Promise<Set<string>> {
   const client = await getClient();
   const res = await client.execute({
@@ -1349,6 +1380,22 @@ export interface ROIStats {
   avg_margin_eur: number;
 }
 
+// ── Notification preferences ────────────────────────────────────────────────
+export async function updateNotificationPrefs(
+  userId: string,
+  prefs: { digest_enabled?: boolean; notif_price_drop?: boolean; notif_listing_gone?: boolean }
+): Promise<void> {
+  const client = await getClient();
+  const sets: string[] = [];
+  const args: (number | string)[] = [];
+  if (prefs.digest_enabled !== undefined) { sets.push("digest_enabled = ?"); args.push(prefs.digest_enabled ? 1 : 0); }
+  if (prefs.notif_price_drop !== undefined) { sets.push("notif_price_drop = ?"); args.push(prefs.notif_price_drop ? 1 : 0); }
+  if (prefs.notif_listing_gone !== undefined) { sets.push("notif_listing_gone = ?"); args.push(prefs.notif_listing_gone ? 1 : 0); }
+  if (!sets.length) return;
+  args.push(userId);
+  await client.execute({ sql: `UPDATE users SET ${sets.join(", ")} WHERE id = ?`, args });
+}
+
 export async function getROIStats(userId: string): Promise<ROIStats> {
   const client = await getClient();
   const res = await client.execute({
@@ -1368,4 +1415,189 @@ export async function getROIStats(userId: string): Promise<ROIStats> {
     deals_won: 0, deals_sold: 0, total_invested_eur: 0,
     total_sold_eur: 0, total_fees_eur: 0, total_margin_eur: 0, avg_margin_eur: 0,
   };
+}
+
+// ── Deal activities (journal CRM) ───────────────────────────────────────────
+export type DealActivityType = "call" | "offer" | "visit" | "note" | "status_change";
+
+export interface DealActivity {
+  id: string;
+  user_id: string;
+  listing_id: string;
+  type: DealActivityType;
+  content: string;
+  metadata: string | null; // JSON
+  created_at: string;
+}
+
+export async function addDealActivity(
+  userId: string,
+  listingId: string,
+  type: DealActivityType,
+  content: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  const client = await getClient();
+  const { randomBytes } = await import("node:crypto");
+  const id = "act_" + randomBytes(9).toString("hex");
+  await client.execute({
+    sql: `INSERT INTO deal_activities (id, user_id, listing_id, type, content, metadata)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      id, userId, listingId, type, content,
+      metadata ? JSON.stringify(metadata) : null,
+    ],
+  });
+}
+
+export async function getDealActivities(userId: string, listingId: string): Promise<DealActivity[]> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: `SELECT * FROM deal_activities WHERE user_id = ? AND listing_id = ? ORDER BY created_at DESC`,
+    args: [userId, listingId],
+  });
+  return res.rows as unknown as DealActivity[];
+}
+
+export async function deleteDealActivity(userId: string, activityId: string): Promise<void> {
+  const client = await getClient();
+  await client.execute({
+    sql: "DELETE FROM deal_activities WHERE id = ? AND user_id = ?",
+    args: [activityId, userId],
+  });
+}
+
+// ── Monthly P&L ─────────────────────────────────────────────────────────────
+export interface MonthlyPnL {
+  month: string; // YYYY-MM
+  deals_won: number;
+  deals_sold: number;
+  invested_eur: number;
+  sold_eur: number;
+  margin_eur: number;
+}
+
+export async function getMonthlyPnL(userId: string, months = 12): Promise<MonthlyPnL[]> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: `SELECT
+            strftime('%Y-%m', won_at) month,
+            COUNT(*) deals_won,
+            SUM(CASE WHEN price_sold_eur IS NOT NULL THEN 1 ELSE 0 END) deals_sold,
+            COALESCE(SUM(COALESCE(price_eur_paid,0)), 0) invested_eur,
+            COALESCE(SUM(COALESCE(price_sold_eur,0)), 0) sold_eur,
+            COALESCE(SUM(CASE WHEN price_sold_eur IS NOT NULL
+              THEN price_sold_eur - COALESCE(price_eur_paid,0) - COALESCE(fees_eur,0)
+              ELSE 0 END), 0) margin_eur
+          FROM deal_pipeline
+          WHERE user_id = ? AND status = 'won' AND won_at IS NOT NULL
+            AND won_at >= datetime('now', ? || ' months')
+          GROUP BY month
+          ORDER BY month DESC`,
+    args: [userId, `-${months}`],
+  });
+  return res.rows as unknown as MonthlyPnL[];
+}
+
+// ── Stocking cost helpers ────────────────────────────────────────────────────
+export async function getDaysInStock(userId: string): Promise<Map<string, number>> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: `SELECT listing_id,
+            CAST(julianday('now') - julianday(COALESCE(won_at, created_at)) AS INTEGER) days_in_stock
+          FROM deal_pipeline
+          WHERE user_id = ? AND status = 'won'`,
+    args: [userId],
+  });
+  const map = new Map<string, number>();
+  for (const row of res.rows as unknown as { listing_id: string; days_in_stock: number }[]) {
+    map.set(row.listing_id, Number(row.days_in_stock));
+  }
+  return map;
+}
+
+// ── Price drop alerts ────────────────────────────────────────────────────────
+export interface PriceDropAlert {
+  listing_id: string;
+  user_id: string;
+  email: string;
+  old_price: number;
+  new_price: number;
+  brand: string;
+  model: string;
+  url: string;
+}
+
+export async function getPendingPriceDropAlerts(since: string): Promise<PriceDropAlert[]> {
+  const client = await getClient();
+  // Find listings with a price drop since `since`, whose owners have notif_price_drop = 1
+  const res = await client.execute({
+    sql: `SELECT DISTINCT
+            ph_new.listing_id,
+            u.id user_id,
+            u.email,
+            ph_old.price_eur old_price,
+            ph_new.price_eur new_price,
+            l.brand,
+            l.model,
+            l.url
+          FROM price_history ph_new
+          JOIN price_history ph_old ON ph_old.listing_id = ph_new.listing_id
+            AND ph_old.observed_at < ph_new.observed_at
+          JOIN listings l ON l.id = ph_new.listing_id
+          JOIN (
+            SELECT DISTINCT sl.user_id, sl.listing_id FROM saved_listings sl
+            UNION
+            SELECT DISTINCT dp.user_id, dp.listing_id FROM deal_pipeline dp
+              WHERE dp.status IN ('watching','to_call','negotiating')
+          ) watched ON watched.listing_id = ph_new.listing_id
+          JOIN users u ON u.id = watched.user_id AND u.notif_price_drop = 1
+          WHERE ph_new.observed_at >= ?
+            AND ph_new.price_eur < ph_old.price_eur
+          ORDER BY ph_new.observed_at DESC`,
+    args: [since],
+  });
+  return res.rows as unknown as PriceDropAlert[];
+}
+
+// ── "Listing disappeared" alerts ─────────────────────────────────────────────
+export interface ListingGoneAlert {
+  listing_id: string;
+  user_id: string;
+  email: string;
+  brand: string;
+  model: string;
+  price_eur: number;
+}
+
+export async function getListingsGoneForWatching(staleSinceHours = 48): Promise<ListingGoneAlert[]> {
+  const client = await getClient();
+  const cutoff = new Date(Date.now() - staleSinceHours * 3600_000).toISOString();
+  const res = await client.execute({
+    sql: `SELECT DISTINCT
+            l.id listing_id,
+            u.id user_id,
+            u.email,
+            l.brand,
+            l.model,
+            l.price_eur
+          FROM listings l
+          JOIN (
+            SELECT DISTINCT sl.user_id, sl.listing_id FROM saved_listings sl
+            UNION
+            SELECT DISTINCT dp.user_id, dp.listing_id FROM deal_pipeline dp
+              WHERE dp.status IN ('watching','to_call','negotiating')
+          ) watched ON watched.listing_id = l.id
+          JOIN users u ON u.id = watched.user_id AND u.notif_listing_gone = 1
+          WHERE l.fetched_at < ?`,
+    args: [cutoff],
+  });
+  return res.rows as unknown as ListingGoneAlert[];
+}
+
+// ── Days on market helper ────────────────────────────────────────────────────
+export function daysOnMarket(listing: { first_seen_at?: string | null; posted_at?: string }): number {
+  const ref = listing.first_seen_at ?? listing.posted_at;
+  if (!ref) return 0;
+  return Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86_400_000));
 }

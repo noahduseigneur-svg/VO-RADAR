@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Eye, Phone, Handshake, Award, X } from "lucide-react";
+import { Eye, Phone, Handshake, Award, X, Clock } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { listDealsByStatus, getROIStats, type DealStatus, type DealWithListing } from "@/lib/db";
+import { listDealsByStatus, getROIStats, getDaysInStock, type DealStatus, type DealWithListing } from "@/lib/db";
 import { fmtEUR, fmtKm } from "@/lib/utils";
 import { ScoreBadge } from "@/components/score-badge";
 import { EngineBadge } from "@/components/engine-badge";
 import { ROITracker } from "@/components/roi-tracker";
+import { DealActivityLog } from "@/components/deal-activity-log";
 
 const COLUMNS: { status: DealStatus; label: string; icon: React.ReactNode; cls: string }[] = [
   { status: "watching",    label: "À surveiller", icon: <Eye size={14} />,       cls: "border-neutral-700" },
@@ -17,9 +18,10 @@ const COLUMNS: { status: DealStatus; label: string; icon: React.ReactNode; cls: 
 
 export default async function PipelinePage() {
   const user = await requireUser();
-  const [groups, roiStats] = await Promise.all([
+  const [groups, roiStats, daysInStockMap] = await Promise.all([
     listDealsByStatus(user.id),
     getROIStats(user.id),
+    getDaysInStock(user.id),
   ]);
   const total = Object.values(groups).reduce((a, b) => a + b.length, 0);
 
@@ -62,7 +64,7 @@ export default async function PipelinePage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-5">
           {COLUMNS.map((col) => (
-            <Column key={col.status} {...col} deals={groups[col.status]} />
+            <Column key={col.status} {...col} deals={groups[col.status]} daysInStockMap={daysInStockMap} />
           ))}
         </div>
       )}
@@ -70,7 +72,7 @@ export default async function PipelinePage() {
   );
 }
 
-function Column({ status, label, icon, cls, deals }: { status: DealStatus; label: string; icon: React.ReactNode; cls: string; deals: DealWithListing[] }) {
+function Column({ status, label, icon, cls, deals, daysInStockMap }: { status: DealStatus; label: string; icon: React.ReactNode; cls: string; deals: DealWithListing[]; daysInStockMap: Map<string, number> }) {
   return (
     <div className={`rounded-xl border-2 bg-[var(--card)] ${cls}`}>
       <header className="border-b border-[var(--border)] p-3">
@@ -83,14 +85,20 @@ function Column({ status, label, icon, cls, deals }: { status: DealStatus; label
         {deals.length === 0 ? (
           <p className="px-2 py-4 text-center text-xs text-neutral-500">Vide</p>
         ) : (
-          deals.map((d) => <DealCard key={d.listing.id} deal={d} />)
+          deals.map((d) => (
+            <DealCard
+              key={d.listing.id}
+              deal={d}
+              daysInStock={status === "won" ? daysInStockMap.get(d.listing.id) : undefined}
+            />
+          ))
         )}
       </div>
     </div>
   );
 }
 
-function DealCard({ deal }: { deal: DealWithListing }) {
+function DealCard({ deal, daysInStock }: { deal: DealWithListing; daysInStock?: number }) {
   const l = deal.listing;
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] overflow-hidden">
@@ -123,6 +131,14 @@ function DealCard({ deal }: { deal: DealWithListing }) {
               <div className="truncate text-[11px] text-neutral-400">{l.version}</div>
             </div>
           </div>
+          {daysInStock !== undefined && (
+            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-neutral-500">
+              <Clock size={11} />
+              <span>{daysInStock} j en stock</span>
+              {daysInStock > 90 && <span className="text-rose-400 font-medium">· Urgent</span>}
+              {daysInStock > 60 && daysInStock <= 90 && <span className="text-amber-400 font-medium">· Portage élevé</span>}
+            </div>
+          )}
           <div className="mt-2 flex items-center justify-between text-xs">
             <span className="font-mono font-semibold tabular-nums">{fmtEUR(l.price_eur)}</span>
             {deal.target_price_eur && (
@@ -152,6 +168,11 @@ function DealCard({ deal }: { deal: DealWithListing }) {
               sold_at: deal.sold_at ?? null,
             }}
           />
+        </div>
+      )}
+      {deal.status !== "lost" && (
+        <div className="border-t border-[var(--border)] p-2">
+          <DealActivityLog listingId={l.id} />
         </div>
       )}
     </div>

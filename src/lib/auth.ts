@@ -44,6 +44,8 @@ export async function signup(email: string, password: string, dealership: string
     trial_ends_at: new Date(Date.now() + 14 * 86400_000).toISOString(),
     created_at: new Date().toISOString(),
     digest_enabled: 1,
+    notif_price_drop: 1,
+    notif_listing_gone: 1,
   };
   await createUser(user);
   await issueSession(user.id);
@@ -91,6 +93,8 @@ const DEMO_USER: User = {
   trial_ends_at: new Date(Date.now() + 999 * 86400_000).toISOString(),
   created_at: new Date().toISOString(),
   digest_enabled: 1,
+  notif_price_drop: 1,
+  notif_listing_gone: 1,
 };
 
 export async function currentUser(): Promise<User | null> {

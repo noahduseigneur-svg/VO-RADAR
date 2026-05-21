@@ -3,7 +3,8 @@ import { PLANS, stripeEnabled } from "@/lib/stripe";
 import { getGarageSettings } from "@/lib/db";
 import { fmtEUR } from "@/lib/utils";
 import { GarageSettingsForm } from "./garage-form";
-import { DigestSection } from "./digest-button";
+import { PasswordForm } from "./password-form";
+import { NotifPrefsForm } from "./notif-prefs-form";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -37,8 +38,22 @@ export default async function SettingsPage() {
       </section>
 
       <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-        <h2 className="mb-4 font-semibold">Digest quotidien</h2>
-        <DigestSection initialEnabled={user.digest_enabled !== 0} />
+        <h2 className="mb-1 font-semibold">Sécurité</h2>
+        <p className="mb-5 text-sm text-neutral-400">
+          Modifiez votre mot de passe de connexion.
+        </p>
+        <PasswordForm />
+      </section>
+
+      <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <h2 className="mb-4 font-semibold">Notifications</h2>
+        <NotifPrefsForm
+          initial={{
+            digest_enabled: user.digest_enabled !== 0,
+            notif_price_drop: user.notif_price_drop !== 0,
+            notif_listing_gone: user.notif_listing_gone !== 0,
+          }}
+        />
       </section>
 
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">

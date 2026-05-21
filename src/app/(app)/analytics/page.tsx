@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { BarChart3, TrendingUp, Flame, Activity, Sparkles, AlertTriangle, BarChart2, Clock, MapPin, Fuel } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { rawQuery } from "@/lib/db";
+import { rawQuery, getMonthlyPnL } from "@/lib/db";
+import type { MonthlyPnL } from "@/lib/db";
 import { fmtEUR } from "@/lib/utils";
 
 interface BrandStat { brand: string; n: number; avg_price: number; avg_score: number; pepites: number }
@@ -14,7 +15,7 @@ interface RegionStat { region: string; n: number; avg_delta: number; pepites: nu
 interface FuelStat { fuel: string; n: number; avg_price: number; avg_score: number; avg_km: number }
 
 export default async function AnalyticsPage() {
-  await requireUser();
+  const user = await requireUser();
 
   const [
     [{ n: total }],
@@ -35,6 +36,7 @@ export default async function AnalyticsPage() {
     hourStats,
     regionStats,
     fuelStats,
+    monthlyPnl,
   ] = await Promise.all([
     rawQuery<{ n: number }>("SELECT COUNT(*) n FROM listings"),
     rawQuery<{ n: number }>("SELECT COUNT(*) n FROM listings WHERE fetched_at > datetime('now','-24 hours')"),
@@ -80,6 +82,7 @@ export default async function AnalyticsPage() {
       ROUND(AVG(score)) avg_score,
       ROUND(AVG(mileage_km)) avg_km
       FROM listings GROUP BY fuel ORDER BY n DESC`),
+    getMonthlyPnL(user.id, 6),
   ]);
 
   const avgScore = Math.round(Number(avgScoreRaw));
@@ -433,6 +436,45 @@ export default async function AnalyticsPage() {
                     <span className={f.avg_score >= 70 ? "text-emerald-400" : f.avg_score >= 50 ? "text-neutral-300" : "text-rose-400"}>
                       {f.avg_score}
                     </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ── Section E : P&L mensuel ── */}
+      <section className="mt-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+        <h2 className="mb-4 flex items-center gap-2 font-semibold">
+          <TrendingUp size={18} className="text-emerald-400" /> P&amp;L mensuel
+        </h2>
+        {monthlyPnl.length === 0 ? (
+          <p className="text-sm text-neutral-400">
+            Aucune vente enregistrée — renseignez le prix de revente dans le pipeline pour suivre votre P&amp;L.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wide text-neutral-500">
+                <th className="pb-2 text-left">Mois</th>
+                <th className="pb-2 text-right">Achats</th>
+                <th className="pb-2 text-right">Revendus</th>
+                <th className="pb-2 text-right">Investi</th>
+                <th className="pb-2 text-right">Marge</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyPnl.map((m: MonthlyPnL) => (
+                <tr key={m.month} className="border-t border-[var(--border)] even:bg-neutral-900/50">
+                  <td className="py-2 font-medium">
+                    {new Date(m.month + "-01").toLocaleString("fr-FR", { month: "short", year: "numeric" })}
+                  </td>
+                  <td className="py-2 text-right font-mono tabular-nums">{m.deals_won}</td>
+                  <td className="py-2 text-right font-mono tabular-nums">{m.deals_sold}</td>
+                  <td className="py-2 text-right font-mono tabular-nums">{fmtEUR(m.invested_eur)}</td>
+                  <td className={`py-2 text-right font-mono tabular-nums ${m.margin_eur > 0 ? "text-emerald-400" : "text-neutral-300"}`}>
+                    {fmtEUR(m.margin_eur)}
                   </td>
                 </tr>
               ))}
