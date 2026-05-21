@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Calendar, Fuel, Gauge, MapPin, User as UserIcon, Building2, Cog, Zap, Clock, TrendingDown, ExternalLink } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { getDealEntry, getListing, getPriceHistory, isListingSaved, getGarageSettings, getSellerActivity, getVehicleCheck, getSimilarListings } from "@/lib/db";
+import { getDealEntry, getListing, getPriceHistory, isListingSaved, getGarageSettings, getSellerActivity, getVehicleCheck, getSimilarListings, getListingNote } from "@/lib/db";
 import { fmtDate, fmtEUR, fmtKm } from "@/lib/utils";
 import { ScoreBadge } from "@/components/score-badge";
 import { EngineBadge } from "@/components/engine-badge";
@@ -16,6 +16,9 @@ import { LiquidityBadge } from "@/components/liquidity-badge";
 import { MarginPanel } from "@/components/margin-panel";
 import { VehicleCheckPanel } from "@/components/vehicle-check-panel";
 import { SimilarListings } from "@/components/similar-listings";
+import { ListingNote } from "@/components/listing-note";
+import { PhotoGallery } from "@/components/photo-gallery";
+import { CostCalculator } from "@/components/cost-calculator";
 
 const BRAND_GRADIENTS: Record<string, string> = {
   BMW: "from-blue-900 to-blue-950",
@@ -35,7 +38,7 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
   const listing = await getListing(id);
   if (!listing) notFound();
 
-  const [history, saved, deal, profile, seller, vehicleCheck, similar] = await Promise.all([
+  const [history, saved, deal, profile, seller, vehicleCheck, similar, note] = await Promise.all([
     getPriceHistory(id),
     isListingSaved(user.id, id),
     getDealEntry(user.id, id),
@@ -43,6 +46,7 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
     getSellerActivity(id),
     getVehicleCheck(user.id, id),
     getSimilarListings(id, listing.brand, listing.model, listing.price_eur, 4),
+    getListingNote(user.id, id),
   ]);
 
   const brandGradient = BRAND_GRADIENTS[listing.brand?.toUpperCase() ?? ""] ?? "from-slate-700 to-slate-950";
@@ -50,38 +54,34 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
   return (
     <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-8">
 
-      {/* Hero photo / gradient banner */}
+      {/* Hero photo avec galerie */}
       <div className="relative mb-0 -mx-4 sm:-mx-8 h-64 sm:h-80 overflow-hidden bg-neutral-900">
-        {listing.photo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={listing.photo_url}
-            alt={`${listing.brand} ${listing.model}`}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className={`absolute inset-0 bg-gradient-to-br ${brandGradient} flex flex-col items-center justify-center`}>
-            <span className="text-white text-7xl font-extrabold opacity-20 select-none tracking-tight">
-              {listing.brand?.slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-        )}
-        {/* Gradient overlay at bottom for readability */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)] via-transparent to-transparent" />
-        {/* Back link over photo */}
-        <div className="absolute top-4 left-4">
+        {(() => {
+          const photos = listing.photos_json ? (() => { try { return JSON.parse(listing.photos_json) as string[]; } catch { return []; } })() : [];
+          const allPhotos = photos.length > 0 ? photos : listing.photo_url ? [listing.photo_url] : [];
+          if (allPhotos.length > 0) {
+            return <PhotoGallery photos={allPhotos} alt={`${listing.brand} ${listing.model}`} />;
+          }
+          return (
+            <div className={`absolute inset-0 bg-gradient-to-br ${brandGradient} flex flex-col items-center justify-center`}>
+              <span className="text-white text-7xl font-extrabold opacity-20 select-none tracking-tight">
+                {listing.brand?.slice(0, 2).toUpperCase()}
+              </span>
+            </div>
+          );
+        })()}
+        {/* Gradient overlay at bottom */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)] via-transparent to-transparent pointer-events-none" />
+        {/* Back link */}
+        <div className="absolute top-4 left-4 z-10">
           <Link href="/listings" className="inline-flex items-center gap-2 rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-sm text-white hover:bg-black/70 transition">
             <ArrowLeft size={14} /> Retour
           </Link>
         </div>
-        {/* Source button over photo */}
-        <div className="absolute top-4 right-4">
-          <a
-            href={listing.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-sm text-white hover:bg-black/70 transition"
-          >
+        {/* Source link */}
+        <div className="absolute top-4 right-4 z-10">
+          <a href={listing.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-sm text-white hover:bg-black/70 transition">
             <ExternalLink size={13} /> Voir l&rsquo;annonce
           </a>
         </div>
@@ -180,22 +180,33 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
         </section>
       )}
 
-      <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="font-semibold">Source de l&rsquo;annonce</h2>
-          <p className="mt-1 text-sm text-neutral-400">
-            Publiée sur <span className="text-neutral-200 capitalize">{listing.source}</span> · {fmtDate(listing.posted_at)}
-          </p>
-        </div>
-        <a
-          href={listing.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
-        >
-          <ExternalLink size={14} /> Voir l&rsquo;annonce originale
-        </a>
+      <section className="mt-6">
+        <ListingNote listingId={listing.id} initial={note} />
       </section>
+
+      <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
+        <h2 className="font-semibold mb-4">Source &amp; vérifications</h2>
+        <div className="flex flex-wrap gap-3">
+          <a href={listing.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-200">
+            <ExternalLink size={14} /> Voir sur {listing.source}
+          </a>
+          <a
+            href={`https://histovec.interieur.gouv.fr/histovec/home`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-300 hover:bg-blue-500/20"
+          >
+            🏛️ Vérifier sur Histovec
+          </a>
+        </div>
+        <p className="mt-3 text-xs text-neutral-500">
+          Histovec est le service officiel du Ministère de l&rsquo;Intérieur pour vérifier l&rsquo;historique d&rsquo;un véhicule (sinistres, km, changements de propriétaire).
+          Publiée {fmtDate(listing.posted_at)} · source : {listing.source}
+        </p>
+      </section>
+
+      <CostCalculator price={listing.price_eur} region={listing.region} year={listing.year} mileage={listing.mileage_km} />
 
       {similar.length > 0 && (
         <section className="mt-6">

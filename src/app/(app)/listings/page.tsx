@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Download, Sparkles } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { dealStatusMapForListings, getDistinctRegions, getDistinctSources, getRegionStats, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince, FOREIGN_REGIONS, getModelsForBrand } from "@/lib/db";
+import { dealStatusMapForListings, getDistinctRegions, getDistinctSources, getRegionStats, getUserState, queryListings, recordListingsView, getBrands, getSavedListingIds, countFreshSince, FOREIGN_REGIONS, getModelsForBrand, getSavedSearches } from "@/lib/db";
 import type { ListingSort } from "@/lib/db";
 import { ListingCard } from "@/components/listing-card";
+import { SavedSearchesBar } from "@/components/saved-searches-bar";
 
 const FUELS = ["essence", "diesel", "hybride", "electrique", "gpl"];
 const BODIES = ["citadine", "berline", "break", "suv", "monospace", "cabriolet", "coupe"];
@@ -74,7 +75,7 @@ export default async function ListingsPage(props: {
     listings = listings.filter((l) => l.fetched_at > prevVisit);
   }
 
-  const [brands, regions, sources, regionStats, savedSet, dealMap, models] = await Promise.all([
+  const [brands, regions, sources, regionStats, savedSet, dealMap, models, savedSearches] = await Promise.all([
     getBrands(),
     getDistinctRegions(),
     getDistinctSources(),
@@ -82,6 +83,7 @@ export default async function ListingsPage(props: {
     getSavedListingIds(user.id),
     dealStatusMapForListings(user.id, listings.map((l) => l.id)),
     sp.brand ? getModelsForBrand(sp.brand) : Promise.resolve([] as string[]),
+    getSavedSearches(user.id),
   ]);
 
   const csvHref = "/api/export/csv?" + new URLSearchParams(
@@ -146,6 +148,11 @@ export default async function ListingsPage(props: {
           {freshSinceLast} annonce{freshSinceLast !== 1 ? "s" : ""} ajoutée{freshSinceLast !== 1 ? "s" : ""} depuis votre dernière visite — cliquez pour filtrer
         </Link>
       )}
+
+      <SavedSearchesBar
+        searches={savedSearches}
+        currentParams={new URLSearchParams(Object.fromEntries(Object.entries(sp).filter(([,v]) => v != null && v !== "")) as Record<string,string>).toString()}
+      />
 
       <form method="GET" className="mb-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
         {sinceLast && <input type="hidden" name="since_last" value="1" />}

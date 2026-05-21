@@ -277,7 +277,7 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
       sql: `INSERT INTO listings (
         id, source, source_id, url, title, brand, model, version, engine_designation, body_type,
         year, mileage_km, fuel, gearbox, power_hp, price_eur, seller_kind,
-        postal_code, region, photos_count, photo_url, posted_at, fetched_at,
+        postal_code, region, photos_count, photo_url, photos_json, posted_at, fetched_at,
         market_value_eur, delta_eur, delta_pct, score,
         engine_rating, critair, comparables_n, comparables_median_eur
       ) VALUES (
@@ -292,6 +292,7 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         mileage_km = excluded.mileage_km,
         fetched_at = excluded.fetched_at,
         photo_url = COALESCE(excluded.photo_url, listings.photo_url),
+        photos_json = COALESCE(excluded.photos_json, listings.photos_json),
         market_value_eur = excluded.market_value_eur,
         delta_eur = excluded.delta_eur,
         delta_pct = excluded.delta_pct,
@@ -305,7 +306,7 @@ export async function upsertListings(items: Listing[]): Promise<{ inserted: numb
         r.version ?? null, r.engine_designation ?? null, r.body_type,
         r.year, r.mileage_km, r.fuel, r.gearbox, r.power_hp ?? null,
         r.price_eur, r.seller_kind, r.postal_code ?? null, r.region ?? null,
-        r.photos_count, r.photo_url ?? null, r.posted_at, r.fetched_at,
+        r.photos_count, r.photo_url ?? null, r.photos_json ?? null, r.posted_at, r.fetched_at,
         r.market_value_eur, r.delta_eur, r.delta_pct, r.score,
         r.engine_rating, r.critair, r.comparables_n, r.comparables_median_eur ?? null,
       ],

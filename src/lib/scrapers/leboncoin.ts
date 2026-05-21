@@ -118,6 +118,16 @@ function parseAd(ad: LbcAd): RawListing | null {
     if (Array.isArray(urls) && urls.length > 0) return String(urls[0]);
     return null;
   })();
+  const photoUrls: string[] = (() => {
+    const urls = images.urls;
+    if (Array.isArray(urls) && urls.length > 0) {
+      return (urls as unknown[]).slice(0, 10).map((u) => String(u)).filter(Boolean);
+    }
+    const t = images.thumb_url ?? images.small_url;
+    if (typeof t === 'string' && t) return [t];
+    return [];
+  })();
+  const photosJson: string | null = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
 
   const url = String(ad.url ?? `${BASE}/voitures/${id}.htm`);
 
@@ -146,6 +156,7 @@ function parseAd(ad: LbcAd): RawListing | null {
     region,
     photos_count: photosCount,
     photo_url: photoUrl,
+    photos_json: photosJson,
     posted_at: String(ad.first_publication_date ?? ad.publication_date ?? new Date().toISOString()),
   };
 }

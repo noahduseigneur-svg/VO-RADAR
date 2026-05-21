@@ -121,6 +121,18 @@ function parseVehicle(v: LcVehicle): RawListing | null {
     }
     return null;
   })();
+  const photoUrls: string[] = Array.isArray(photos)
+    ? (photos as unknown[]).slice(0, 10).map((img) => {
+        if (typeof img === 'string') return img;
+        if (img && typeof img === 'object') {
+          const o = img as Record<string, unknown>;
+          const u = o.url ?? o.uri ?? o.src ?? o.href ?? o.large ?? o.medium ?? o.small;
+          return typeof u === 'string' ? u : '';
+        }
+        return '';
+      }).filter(Boolean)
+    : [];
+  const photosJson: string | null = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
 
   const urlRaw = str(v.url ?? v.adUrl ?? v.link);
   const url = urlRaw
@@ -149,6 +161,7 @@ function parseVehicle(v: LcVehicle): RawListing | null {
     region,
     photos_count: photosCount,
     photo_url: photoUrl,
+    photos_json: photosJson,
     posted_at: new Date().toISOString(),
   };
 }

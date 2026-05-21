@@ -301,6 +301,12 @@ function parseAs24Listing(
   const photoUrl: string | null = firstImg
     ? (String(firstImg.urlM ?? firstImg.urlL ?? firstImg.urlS ?? firstImg.uri ?? firstImg.url ?? firstImg.src ?? "") || null)
     : null;
+  const photoUrls: string[] = Array.isArray(raw.images)
+    ? (raw.images as Record<string, unknown>[]).slice(0, 10).map((img) =>
+        String(img.urlM ?? img.urlL ?? img.urlS ?? img.uri ?? img.url ?? img.src ?? "")
+      ).filter(Boolean)
+    : [];
+  const photosJson: string | null = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
 
   const postalCode = (location.zip as string) ?? null;
   // Pour la France : on stocke la ville ; pour les autres pays : le nom du pays
@@ -338,6 +344,7 @@ function parseAs24Listing(
     region: region,
     photos_count: photosCount,
     photo_url: photoUrl,
+    photos_json: photosJson,
     posted_at: new Date().toISOString(),
   };
 }

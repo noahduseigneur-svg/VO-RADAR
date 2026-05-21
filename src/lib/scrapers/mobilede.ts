@@ -187,6 +187,18 @@ function parseItem(item: MobileItem, fallbackBrand: string): RawListing | null {
     }
     return null;
   })();
+  const photoUrls: string[] = Array.isArray(imgs)
+    ? (imgs as unknown[]).slice(0, 10).map((img) => {
+        if (typeof img === 'string') return img;
+        if (img && typeof img === 'object') {
+          const o = img as Record<string, unknown>;
+          const u = o.url ?? o.uri ?? o.src ?? o.href ?? o.large ?? o.medium;
+          return typeof u === 'string' ? u : '';
+        }
+        return '';
+      }).filter(Boolean)
+    : [];
+  const photosJson: string | null = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
 
   return {
     id: `mobilede-${id}`,
@@ -210,6 +222,7 @@ function parseItem(item: MobileItem, fallbackBrand: string): RawListing | null {
     region,
     photos_count: photosCount,
     photo_url: photoUrl,
+    photos_json: photosJson,
     posted_at: new Date().toISOString(),
   };
 }
