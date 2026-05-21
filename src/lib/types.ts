@@ -24,6 +24,7 @@ export interface Listing {
   postal_code: string | null;
   region: string | null;
   photos_count: number;
+  photo_url: string | null;  // URL de la 1ère photo (pour l'affichage)
   posted_at: string; // ISO
   fetched_at: string; // ISO
   engine_designation: string | null; // ex: "1.5 BlueHDi 130", "TCe 90"

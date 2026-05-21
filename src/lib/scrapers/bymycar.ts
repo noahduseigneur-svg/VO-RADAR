@@ -96,6 +96,9 @@ function adapter(node: JsonLdCar, url: string): RawListing | null {
     postal_code: null,
     region: null,
     photos_count: car.image ? (Array.isArray(car.image) ? car.image.length : 1) : 0,
+    photo_url: car.image
+      ? (Array.isArray(car.image) ? (typeof car.image[0] === 'string' ? car.image[0] : null) : (typeof car.image === 'string' ? car.image : null))
+      : null,
     posted_at: new Date().toISOString(),
   };
 }

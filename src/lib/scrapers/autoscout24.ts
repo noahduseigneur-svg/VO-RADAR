@@ -295,6 +295,12 @@ function parseAs24Listing(
   const mileage = parseFormattedKm(vehicle.mileageInKm);
   const power = extractPowerFromVersion(version);
   const photosCount = Array.isArray(raw.images) ? raw.images.length : 0;
+  const firstImg = Array.isArray(raw.images) && raw.images.length > 0
+    ? (raw.images[0] as Record<string,unknown>)
+    : null;
+  const photoUrl: string | null = firstImg
+    ? (String(firstImg.urlM ?? firstImg.urlL ?? firstImg.urlS ?? firstImg.uri ?? firstImg.url ?? firstImg.src ?? "") || null)
+    : null;
 
   const postalCode = (location.zip as string) ?? null;
   // Pour la France : on stocke la ville ; pour les autres pays : le nom du pays
@@ -331,6 +337,7 @@ function parseAs24Listing(
     postal_code: postalCode,
     region: region,
     photos_count: photosCount,
+    photo_url: photoUrl,
     posted_at: new Date().toISOString(),
   };
 }

@@ -150,6 +150,17 @@ function parseAd(ad: MpAd, fallbackBrand: string, fallbackModel: string): RawLis
   // Photos
   const imgs = ad.images ?? ad.photos ?? ad.pictures ?? [];
   const photosCount = Array.isArray(imgs) ? imgs.length : 0;
+  const photoUrl: string | null = (() => {
+    if (!Array.isArray(imgs) || imgs.length === 0) return null;
+    const first = imgs[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first === 'object') {
+      const o = first as Record<string, unknown>;
+      const u = o.url ?? o.uri ?? o.src ?? o.href ?? o.extraExtraLarge ?? o.extraLarge ?? o.large ?? o.medium ?? o.small;
+      return typeof u === 'string' ? u : null;
+    }
+    return null;
+  })();
 
   return {
     id: `marktplaats-${id}`,
@@ -172,6 +183,7 @@ function parseAd(ad: MpAd, fallbackBrand: string, fallbackModel: string): RawLis
     postal_code: postalCode,
     region,
     photos_count: photosCount,
+    photo_url: photoUrl,
     posted_at: strVal(ad.date ?? ad.timestamp ?? ad.firstPublicationDate) ?? new Date().toISOString(),
   };
 }

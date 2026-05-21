@@ -102,6 +102,7 @@ export function generateSeedListings(count = 80, seed = 42): Listing[] {
       postal_code: String(randInt(1000, 95000)).padStart(5, "0"),
       region: pick(REGIONS),
       photos_count: randInt(1, 12),
+      photo_url: null,
       posted_at,
       fetched_at: new Date(now).toISOString(),
     };

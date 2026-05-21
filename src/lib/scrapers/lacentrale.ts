@@ -110,6 +110,17 @@ function parseVehicle(v: LcVehicle): RawListing | null {
 
   const photos = v.photos ?? v.images ?? v.photo;
   const photosCount = Array.isArray(photos) ? photos.length : 0;
+  const photoUrl: string | null = (() => {
+    if (!Array.isArray(photos) || photos.length === 0) return null;
+    const first = photos[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first === 'object') {
+      const o = first as Record<string, unknown>;
+      const u = o.url ?? o.uri ?? o.src ?? o.href ?? o.large ?? o.medium ?? o.small;
+      return typeof u === 'string' ? u : null;
+    }
+    return null;
+  })();
 
   const urlRaw = str(v.url ?? v.adUrl ?? v.link);
   const url = urlRaw
@@ -137,6 +148,7 @@ function parseVehicle(v: LcVehicle): RawListing | null {
     postal_code: postalCode,
     region,
     photos_count: photosCount,
+    photo_url: photoUrl,
     posted_at: new Date().toISOString(),
   };
 }

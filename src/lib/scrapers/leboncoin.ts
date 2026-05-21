@@ -111,6 +111,13 @@ function parseAd(ad: LbcAd): RawListing | null {
   // Photos
   const images = (ad.images ?? {}) as Record<string, unknown>;
   const photosCount = Number(images.nb_images ?? 0);
+  const photoUrl: string | null = (() => {
+    const t = images.thumb_url ?? images.small_url;
+    if (typeof t === 'string' && t) return t;
+    const urls = images.urls;
+    if (Array.isArray(urls) && urls.length > 0) return String(urls[0]);
+    return null;
+  })();
 
   const url = String(ad.url ?? `${BASE}/voitures/${id}.htm`);
 
@@ -138,6 +145,7 @@ function parseAd(ad: LbcAd): RawListing | null {
     postal_code: postalCode,
     region,
     photos_count: photosCount,
+    photo_url: photoUrl,
     posted_at: String(ad.first_publication_date ?? ad.publication_date ?? new Date().toISOString()),
   };
 }

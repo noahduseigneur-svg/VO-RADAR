@@ -130,6 +130,7 @@ function adapt(item: EbayItemSummary, marketplace: string): RawListing | null {
     postal_code: item.itemLocation?.postalCode ?? null,
     region: item.itemLocation?.country ?? null,
     photos_count: item.thumbnailImages?.length ?? 0,
+    photo_url: item.thumbnailImages?.[0]?.imageUrl ?? null,
     posted_at: item.itemCreationDate ?? new Date().toISOString(),
   };
 }

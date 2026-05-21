@@ -32,6 +32,7 @@ export const demoScraper: Scraper = {
       postal_code: l.postal_code,
       region: l.region,
       photos_count: l.photos_count,
+      photo_url: null,
       posted_at: l.posted_at,
     }));
   },

@@ -176,6 +176,17 @@ function parseItem(item: MobileItem, fallbackBrand: string): RawListing | null {
 
   const imgs = item.images ?? item.photos ?? item.thumbnails ?? [];
   const photosCount = Array.isArray(imgs) ? imgs.length : 0;
+  const photoUrl: string | null = (() => {
+    if (!Array.isArray(imgs) || imgs.length === 0) return null;
+    const first = imgs[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first === 'object') {
+      const o = first as Record<string,unknown>;
+      const u = o.url ?? o.uri ?? o.src ?? o.href ?? o.large ?? o.medium;
+      return typeof u === 'string' ? u : null;
+    }
+    return null;
+  })();
 
   return {
     id: `mobilede-${id}`,
@@ -198,6 +209,7 @@ function parseItem(item: MobileItem, fallbackBrand: string): RawListing | null {
     postal_code: postalCode,
     region,
     photos_count: photosCount,
+    photo_url: photoUrl,
     posted_at: new Date().toISOString(),
   };
 }

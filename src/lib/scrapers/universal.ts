@@ -92,6 +92,12 @@ export function buildUniversalAdapter(sourceName: string) {
       postal_code: null,
       region: null,
       photos_count: Array.isArray(car.image) ? car.image.length : car.image ? 1 : 0,
+      photo_url: (() => {
+        if (Array.isArray(car.image)) {
+          return typeof car.image[0] === 'string' ? car.image[0] : null;
+        }
+        return typeof car.image === 'string' ? car.image : null;
+      })(),
       posted_at: new Date().toISOString(),
     };
   };

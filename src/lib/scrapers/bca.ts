@@ -251,6 +251,13 @@ function adaptVehicle(v: BcaVehicle): RawListing | null {
     postal_code: null,
     region: extractRegion(v),
     photos_count: Array.isArray(v.images) ? v.images.length : 0,
+    photo_url: (() => {
+      if (!Array.isArray(v.images) || v.images.length === 0) return null;
+      const first = v.images[0];
+      if (typeof first === 'string') return first;
+      if (typeof first === 'object' && first !== null) return (first as { url: string }).url ?? null;
+      return null;
+    })(),
     posted_at: v.auctionDate ?? v.saleDate ?? new Date().toISOString(),
   };
 }

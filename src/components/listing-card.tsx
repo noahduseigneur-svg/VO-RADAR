@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Calendar, Fuel, Gauge, MapPin, User, Building2, Sparkles } from "lucide-react";
+import React from "react";
+import { Calendar, Fuel, Gauge, User, Building2, Sparkles } from "lucide-react";
 import { ScoreBadge } from "./score-badge";
 import { SaveButton } from "./save-button";
 import { EngineBadge } from "./engine-badge";
@@ -27,6 +28,46 @@ const SOURCE_BADGES: Record<string, { label: string; color: string }> = {
   "lacentrale":  { label: "La Centrale", color: "bg-cyan-500/20 text-cyan-300" },
 };
 
+const BRAND_COLORS: Record<string, string> = {
+  BMW: "bg-gradient-to-br from-blue-800 to-blue-950",
+  MERCEDES: "bg-gradient-to-br from-gray-700 to-gray-900",
+  "MERCEDES-BENZ": "bg-gradient-to-br from-gray-700 to-gray-900",
+  VOLKSWAGEN: "bg-gradient-to-br from-blue-600 to-blue-800",
+  VW: "bg-gradient-to-br from-blue-600 to-blue-800",
+  AUDI: "bg-gradient-to-br from-red-700 to-red-900",
+  PEUGEOT: "bg-gradient-to-br from-blue-700 to-indigo-900",
+  RENAULT: "bg-gradient-to-br from-yellow-500 to-yellow-700",
+  CITROEN: "bg-gradient-to-br from-red-600 to-red-800",
+  FORD: "bg-gradient-to-br from-blue-500 to-blue-700",
+  TOYOTA: "bg-gradient-to-br from-red-500 to-red-700",
+  DACIA: "bg-gradient-to-br from-blue-400 to-blue-600",
+  OPEL: "bg-gradient-to-br from-yellow-600 to-yellow-800",
+  SKODA: "bg-gradient-to-br from-green-600 to-green-800",
+  SEAT: "bg-gradient-to-br from-red-600 to-orange-700",
+  FIAT: "bg-gradient-to-br from-red-500 to-red-700",
+  HYUNDAI: "bg-gradient-to-br from-blue-600 to-sky-800",
+  KIA: "bg-gradient-to-br from-red-700 to-red-900",
+  NISSAN: "bg-gradient-to-br from-red-600 to-red-800",
+  HONDA: "bg-gradient-to-br from-red-600 to-red-800",
+  MAZDA: "bg-gradient-to-br from-red-700 to-red-900",
+  VOLVO: "bg-gradient-to-br from-blue-700 to-blue-900",
+  LAND_ROVER: "bg-gradient-to-br from-green-700 to-green-900",
+  "LAND ROVER": "bg-gradient-to-br from-green-700 to-green-900",
+  PORSCHE: "bg-gradient-to-br from-amber-700 to-amber-900",
+};
+
+const SOURCE_LOGO_BADGE: Record<string, React.ReactNode> = {
+  autoscout24: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500 text-white shadow">AS24</span>,
+  leboncoin: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-400 text-white shadow">LBC</span>,
+  lacentrale: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-600 text-white shadow">LC</span>,
+  mobilede: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500 text-white shadow">M.de</span>,
+  marktplaats: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-700 text-white shadow">MP</span>,
+  aramis: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-600 text-white shadow">ARAM</span>,
+  bymycar: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-600 text-white shadow">BMC</span>,
+  spoticar: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-yellow-500 text-black shadow">SPOT</span>,
+  ebay: <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-400 text-white shadow">eBay</span>,
+};
+
 export function ListingCard({
   listing,
   savedInitial = false,
@@ -41,13 +82,59 @@ export function ListingCard({
   const gain = listing.delta_eur;
   const countryBadge = listing.region ? COUNTRY_BADGES[listing.region] : null;
   const sourceBadge = listing.source ? SOURCE_BADGES[listing.source.toLowerCase()] : null;
+  const sourceLogoBadge = listing.source ? SOURCE_LOGO_BADGE[listing.source.toLowerCase()] : null;
+  const brandColor = BRAND_COLORS[listing.brand?.toUpperCase() ?? ""] ?? "bg-gradient-to-br from-slate-600 to-slate-800";
   return (
-    <article className="group relative rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 transition hover:border-neutral-700">
+    <article className="group relative rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden transition hover:border-neutral-700">
       {isNew && (
-        <span className="absolute -top-2 left-3 inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+        <span className="absolute -top-2 left-3 z-10 inline-flex items-center gap-1 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
           <Sparkles size={9} /> Nouveau
         </span>
       )}
+
+      {/* Zone image */}
+      <div className="relative h-40 bg-gray-100 dark:bg-gray-800 overflow-hidden">
+        {listing.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={listing.photo_url}
+            alt={listing.title}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={(e) => {
+              const img = e.target as HTMLImageElement;
+              img.style.display = "none";
+              const fallback = img.parentElement?.querySelector("[data-fallback]") as HTMLElement | null;
+              if (fallback) fallback.style.opacity = "1";
+            }}
+          />
+        ) : null}
+        {/* Fallback gradient avec initiales */}
+        <div
+          data-fallback
+          className={`absolute inset-0 flex flex-col items-center justify-center ${brandColor} transition-opacity`}
+          style={{ opacity: listing.photo_url ? 0 : 1 }}
+        >
+          <span className="text-white text-3xl font-bold opacity-80">{listing.brand?.slice(0, 2).toUpperCase()}</span>
+          <span className="text-white text-xs opacity-60 mt-1">{listing.brand}</span>
+        </div>
+        {/* Badge source logo en haut à droite */}
+        {sourceLogoBadge && (
+          <div className="absolute top-2 right-2">
+            {sourceLogoBadge}
+          </div>
+        )}
+        {/* Badge pays en bas à gauche */}
+        {countryBadge && (
+          <div className="absolute bottom-2 left-2">
+            <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${countryBadge.color} backdrop-blur-sm`}>
+              {countryBadge.flag} {countryBadge.short}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4">
       <header className="flex items-start justify-between gap-3">
         <Link href={`/listings/${listing.id}`} className="min-w-0 flex-1 hover:underline">
           <h3 className="truncate font-semibold text-neutral-100">
@@ -60,11 +147,6 @@ export function ListingCard({
         </Link>
         <div className="flex flex-col items-end gap-1.5">
           <div className="flex items-center gap-1.5">
-            {countryBadge && (
-              <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${countryBadge.color}`}>
-                {countryBadge.flag} {countryBadge.short}
-              </span>
-            )}
             {sourceBadge && (
               <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${sourceBadge.color}`}>
                 {sourceBadge.label}
@@ -119,6 +201,7 @@ export function ListingCard({
           </Link>
         </div>
       </footer>
+      </div>
     </article>
   );
 }
