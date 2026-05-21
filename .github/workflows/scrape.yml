@@ -1,0 +1,43 @@
+name: Scraping continu
+
+on:
+  schedule:
+    # Toutes les 30 minutes, 24h/24 — GitHub Actions gratuit
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    # Déclenchement manuel depuis l'onglet "Actions" sur GitHub
+
+jobs:
+  scrape:
+    name: Déclencher le scraping Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Appel cron
+        run: |
+          HTTP=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            --max-time 65 \
+            --connect-timeout 10 \
+            -X GET "${{ secrets.APP_URL }}/api/cron/scrape" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+
+          echo "→ HTTP $HTTP"
+
+          if [ "$HTTP" = "200" ]; then
+            echo "✅ Scraping OK"
+            cat /tmp/resp.json | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          total=sum(s.get('inserted',0) for s in d.get('sources',[]))
+          print(f'   Annonces insérées : {total}')
+          for s in d.get('sources',[]):
+            if s.get('inserted',0)>0 or s.get('error'):
+              marker='❌' if s.get('error') else '+'
+              print(f'   {marker} {s[\"source\"]}: {s.get(\"inserted\",0)} ({s.get(\"error\",\"\")})')
+          " 2>/dev/null || cat /tmp/resp.json
+          else
+            echo "⚠️  HTTP $HTTP — vérifier APP_URL et CRON_SECRET dans les secrets GitHub"
+            cat /tmp/resp.json
+            exit 1
+          fi

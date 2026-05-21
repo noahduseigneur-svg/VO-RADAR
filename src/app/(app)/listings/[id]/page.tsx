@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Calendar, Fuel, Gauge, MapPin, User as UserIcon, Building2, Cog, Zap, Clock, TrendingDown } from "lucide-react";
+import { ArrowLeft, Calendar, Fuel, Gauge, MapPin, User as UserIcon, Building2, Cog, Zap, Clock, TrendingDown, ExternalLink } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getDealEntry, getListing, getPriceHistory, isListingSaved, getGarageSettings, getSellerActivity, getVehicleCheck } from "@/lib/db";
 import { fmtDate, fmtEUR, fmtKm } from "@/lib/utils";
@@ -15,6 +15,18 @@ import { PricingProPanel } from "@/components/pricing-pro-panel";
 import { LiquidityBadge } from "@/components/liquidity-badge";
 import { MarginPanel } from "@/components/margin-panel";
 import { VehicleCheckPanel } from "@/components/vehicle-check-panel";
+
+const BRAND_GRADIENTS: Record<string, string> = {
+  BMW: "from-blue-900 to-blue-950",
+  MERCEDES: "from-gray-700 to-gray-950",
+  "MERCEDES-BENZ": "from-gray-700 to-gray-950",
+  AUDI: "from-red-800 to-red-950",
+  VOLKSWAGEN: "from-blue-700 to-blue-950",
+  PEUGEOT: "from-blue-800 to-indigo-950",
+  RENAULT: "from-yellow-600 to-yellow-800",
+  VOLVO: "from-blue-800 to-blue-950",
+  PORSCHE: "from-amber-700 to-amber-950",
+};
 
 export default async function ListingDetailPage(props: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -31,26 +43,65 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
     getVehicleCheck(user.id, id),
   ]);
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
-      <Link href="/listings" className="mb-4 inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white">
-        <ArrowLeft size={14} /> Retour aux annonces
-      </Link>
+  const brandGradient = BRAND_GRADIENTS[listing.brand?.toUpperCase() ?? ""] ?? "from-slate-700 to-slate-950";
 
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-3xl font-semibold">{listing.brand} {listing.model}</h1>
-          <p className="mt-1 text-neutral-400">{listing.version}</p>
-          {listing.engine_designation && (
-            <p className="mt-0.5 text-sm text-neutral-500">Motorisation : {listing.engine_designation}</p>
-          )}
+  return (
+    <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-8">
+
+      {/* Hero photo / gradient banner */}
+      <div className="relative mb-0 -mx-4 sm:-mx-8 h-64 sm:h-80 overflow-hidden bg-neutral-900">
+        {listing.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={listing.photo_url}
+            alt={`${listing.brand} ${listing.model}`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className={`absolute inset-0 bg-gradient-to-br ${brandGradient} flex flex-col items-center justify-center`}>
+            <span className="text-white text-7xl font-extrabold opacity-20 select-none tracking-tight">
+              {listing.brand?.slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        )}
+        {/* Gradient overlay at bottom for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--background)] via-transparent to-transparent" />
+        {/* Back link over photo */}
+        <div className="absolute top-4 left-4">
+          <Link href="/listings" className="inline-flex items-center gap-2 rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-sm text-white hover:bg-black/70 transition">
+            <ArrowLeft size={14} /> Retour
+          </Link>
         </div>
-        <div className="flex items-center gap-2">
-          <DealStatusButton listingId={listing.id} initial={deal?.status ?? null} />
-          <SaveButton listingId={listing.id} initial={saved} />
-          <ScoreBadge score={listing.score} />
+        {/* Source button over photo */}
+        <div className="absolute top-4 right-4">
+          <a
+            href={listing.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-black/50 backdrop-blur-sm px-3 py-1.5 text-sm text-white hover:bg-black/70 transition"
+          >
+            <ExternalLink size={13} /> Voir l&rsquo;annonce
+          </a>
         </div>
-      </header>
+      </div>
+
+      {/* Title bar (overlapping the hero bottom) */}
+      <div className="relative z-10 -mt-10 mb-6 px-2">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 backdrop-blur-md p-5 flex flex-wrap items-start justify-between gap-4 shadow-xl">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-semibold">{listing.brand} {listing.model}</h1>
+            <p className="mt-1 text-neutral-400">{listing.version}</p>
+            {listing.engine_designation && (
+              <p className="mt-0.5 text-sm text-neutral-500">Motorisation : {listing.engine_designation}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <DealStatusButton listingId={listing.id} initial={deal?.status ?? null} />
+            <SaveButton listingId={listing.id} initial={saved} />
+            <ScoreBadge score={listing.score} />
+          </div>
+        </div>
+      </div>
 
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <EngineBadge rating={listing.engine_rating} />
@@ -127,18 +178,20 @@ export default async function ListingDetailPage(props: { params: Promise<{ id: s
         </section>
       )}
 
-      <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-        <h2 className="mb-3 font-semibold">Source de l&rsquo;annonce</h2>
-        <p className="text-sm text-neutral-400">
-          Provient de <span className="text-neutral-200">{listing.source}</span>
-        </p>
+      <section className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">Source de l&rsquo;annonce</h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Publiée sur <span className="text-neutral-200 capitalize">{listing.source}</span> · {fmtDate(listing.posted_at)}
+          </p>
+        </div>
         <a
           href={listing.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
+          className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
         >
-          Voir l&rsquo;annonce originale →
+          <ExternalLink size={14} /> Voir l&rsquo;annonce originale
         </a>
       </section>
     </div>

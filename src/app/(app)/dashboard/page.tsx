@@ -62,13 +62,22 @@ export default async function Dashboard() {
       <section className="mt-10">
         <h2 className="mb-4 text-xl font-semibold">Activité par marque</h2>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6">
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-            {stats.brands.map((b) => (
-              <div key={b.brand} className="flex items-center justify-between rounded-lg bg-[var(--background)] px-4 py-3">
-                <span className="font-medium">{b.brand}</span>
-                <span className="font-mono text-sm text-neutral-400 tabular-nums">{b.n}</span>
-              </div>
-            ))}
+          <div className="space-y-3">
+            {(() => {
+              const max = Math.max(...stats.brands.map((b) => b.n), 1);
+              return stats.brands.map((b) => (
+                <div key={b.brand} className="flex items-center gap-3">
+                  <span className="w-24 shrink-0 text-sm font-medium text-neutral-300">{b.brand}</span>
+                  <div className="flex-1 rounded-full bg-neutral-800 h-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-rose-500 to-rose-400 transition-all"
+                      style={{ width: `${Math.round((b.n / max) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="w-10 shrink-0 text-right font-mono text-sm text-neutral-400 tabular-nums">{b.n}</span>
+                </div>
+              ));
+            })()}
           </div>
         </div>
       </section>
@@ -77,13 +86,17 @@ export default async function Dashboard() {
 }
 
 function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: "rose" | "emerald" }) {
-  const accentCls = accent === "rose" ? "text-rose-400" : accent === "emerald" ? "text-emerald-400" : "text-neutral-300";
+  const borderCls = accent === "rose" ? "border-rose-500/30" : accent === "emerald" ? "border-emerald-500/30" : "border-[var(--border)]";
+  const bgAccentCls = accent === "rose" ? "bg-rose-500/10" : accent === "emerald" ? "bg-emerald-500/10" : "bg-[var(--card)]";
+  const iconBgCls = accent === "rose" ? "bg-rose-500/20 text-rose-400" : accent === "emerald" ? "bg-emerald-500/20 text-emerald-400" : "bg-neutral-700/50 text-neutral-300";
+  const valueCls = accent === "rose" ? "text-rose-300" : accent === "emerald" ? "text-emerald-300" : "text-neutral-100";
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-      <div className={`flex items-center gap-2 text-xs uppercase tracking-wide ${accentCls}`}>
-        {icon} {label}
+    <div className={`rounded-xl border ${borderCls} ${bgAccentCls} p-5`}>
+      <div className={`inline-flex items-center justify-center rounded-lg p-2 ${iconBgCls}`}>
+        {icon}
       </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
+      <div className={`mt-3 text-3xl font-bold tabular-nums ${valueCls}`}>{value}</div>
+      <div className="mt-1 text-xs uppercase tracking-wide text-neutral-500">{label}</div>
     </div>
   );
 }

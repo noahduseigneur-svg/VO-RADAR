@@ -68,30 +68,49 @@ function DealCard({ deal }: { deal: DealWithListing }) {
   return (
     <Link
       href={`/listings/${l.id}`}
-      className="block rounded-lg border border-[var(--border)] bg-[var(--background)] p-2.5 transition hover:border-neutral-600"
+      className="block rounded-lg border border-[var(--border)] bg-[var(--background)] overflow-hidden transition hover:border-neutral-600"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">{l.brand} {l.model}</div>
-          <div className="truncate text-[11px] text-neutral-400">{l.version}</div>
+      {/* Miniature photo */}
+      <div className="h-20 bg-neutral-800 overflow-hidden relative">
+        {l.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={l.photo_url}
+            alt={`${l.brand} ${l.model}`}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-neutral-600 text-xl font-bold">{l.brand?.slice(0, 2).toUpperCase()}</span>
+          </div>
+        )}
+        <div className="absolute top-1.5 right-1.5">
+          <ScoreBadge score={l.score} withLabel={false} />
         </div>
-        <ScoreBadge score={l.score} withLabel={false} />
       </div>
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <span className="font-mono font-semibold tabular-nums">{fmtEUR(l.price_eur)}</span>
-        {deal.target_price_eur && (
-          <span className="text-rose-400">Offre {fmtEUR(deal.target_price_eur)}</span>
+      <div className="p-2.5">
+        <div className="flex items-start justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium">{l.brand} {l.model}</div>
+            <div className="truncate text-[11px] text-neutral-400">{l.version}</div>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-xs">
+          <span className="font-mono font-semibold tabular-nums">{fmtEUR(l.price_eur)}</span>
+          {deal.target_price_eur && (
+            <span className="text-rose-400">Offre {fmtEUR(deal.target_price_eur)}</span>
+          )}
+        </div>
+        <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-500">
+          <span>{l.year} · {fmtKm(l.mileage_km)}</span>
+          <EngineBadge rating={l.engine_rating} compact />
+        </div>
+        {deal.note && (
+          <div className="mt-2 truncate rounded bg-[var(--card)] px-2 py-1 text-[11px] text-neutral-300" title={deal.note}>
+            {deal.note}
+          </div>
         )}
       </div>
-      <div className="mt-1 flex items-center justify-between text-[10px] text-neutral-500">
-        <span>{l.year} · {fmtKm(l.mileage_km)}</span>
-        <EngineBadge rating={l.engine_rating} compact />
-      </div>
-      {deal.note && (
-        <div className="mt-2 truncate rounded bg-[var(--card)] px-2 py-1 text-[11px] text-neutral-300" title={deal.note}>
-          {deal.note}
-        </div>
-      )}
     </Link>
   );
 }

@@ -40,7 +40,22 @@ export default async function ComparePage(props: { searchParams: Promise<{ ids?:
             <tr>
               <th className="sticky left-0 bg-[var(--background)] py-3 pr-4 text-left text-xs uppercase tracking-wide text-neutral-500">Critère</th>
               {listings.map((l) => (
-                <th key={l.id} className="border-b border-[var(--border)] px-4 py-3 text-left">
+                <th key={l.id} className="border-b border-[var(--border)] px-3 py-3 text-left min-w-[200px]">
+                  {/* Photo thumbnail */}
+                  <div className="mb-2 h-28 w-full rounded-lg overflow-hidden bg-neutral-800">
+                    {l.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={l.photo_url}
+                        alt={`${l.brand} ${l.model}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-neutral-600 text-2xl font-bold">{l.brand?.slice(0, 2).toUpperCase()}</span>
+                      </div>
+                    )}
+                  </div>
                   <Link href={`/listings/${l.id}`} className="hover:underline">
                     <div className="font-semibold">{l.brand} {l.model}</div>
                     <div className="text-xs text-neutral-400">{l.version}</div>
