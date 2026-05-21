@@ -25,6 +25,7 @@ export interface Listing {
   region: string | null;
   photos_count: number;
   photo_url: string | null;  // URL de la 1ère photo (pour l'affichage)
+  photos_json?: string | null; // JSON array de toutes les photo URLs
   posted_at: string; // ISO
   fetched_at: string; // ISO
   engine_designation: string | null; // ex: "1.5 BlueHDi 130", "TCe 90"

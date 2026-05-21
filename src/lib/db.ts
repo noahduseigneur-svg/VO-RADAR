@@ -196,13 +196,37 @@ async function migrate(client: Client): Promise<void> {
       target_margin_eur INTEGER NOT NULL DEFAULT 1000,
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS listing_notes (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+      note TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, listing_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS saved_searches (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      params TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_saved_searches_user ON saved_searches(user_id, created_at DESC);
   `);
 
   // Migrations additives — ignorent l'erreur "duplicate column" si déjà appliquées
-  await client.execute({
-    sql: "ALTER TABLE users ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 1",
-    args: [],
-  }).catch(() => {});
+  const additives = [
+    "ALTER TABLE users ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE deal_pipeline ADD COLUMN price_eur_paid INTEGER",
+    "ALTER TABLE deal_pipeline ADD COLUMN fees_eur INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE deal_pipeline ADD COLUMN price_sold_eur INTEGER",
+    "ALTER TABLE deal_pipeline ADD COLUMN sold_at TEXT",
+    "ALTER TABLE listings ADD COLUMN photos_json TEXT",
+  ];
+  for (const sql of additives) {
+    await client.execute({ sql, args: [] }).catch(() => {});
+  }
 }
 
 async function seedIfEmpty(client: Client): Promise<void> {
@@ -465,6 +489,33 @@ export async function getBrands(): Promise<string[]> {
     if (!seen.has(key)) seen.set(key, b);
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+export async function getModelsForBrand(brand: string): Promise<string[]> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: "SELECT DISTINCT model FROM listings WHERE brand = ? ORDER BY model",
+    args: [brand],
+  });
+  return (res.rows as unknown as { model: string }[]).map((r) => r.model);
+}
+
+export async function getSimilarListings(
+  excludeId: string,
+  brand: string,
+  model: string,
+  priceEur: number,
+  limit = 4
+): Promise<Listing[]> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: `SELECT * FROM listings
+          WHERE id != ? AND brand = ? AND model = ?
+          ORDER BY ABS(price_eur - ?) ASC
+          LIMIT ?`,
+    args: [excludeId, brand, model, priceEur, limit],
+  });
+  return (res.rows as unknown as Listing[]);
 }
 
 export async function getSavedListingIds(userId: string): Promise<Set<string>> {
@@ -870,6 +921,11 @@ export interface DealEntry {
   note: string | null;
   target_price_eur: number | null;
   max_offer_eur: number | null;
+  // ROI tracking
+  price_eur_paid: number | null;
+  fees_eur: number;
+  price_sold_eur: number | null;
+  sold_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -923,7 +979,9 @@ export async function getDealEntry(userId: string, listingId: string): Promise<D
 export async function listDealsByStatus(userId: string): Promise<Record<DealStatus, DealWithListing[]>> {
   const client = await getClient();
   const dealsRes = await client.execute({
-    sql: `SELECT d.user_id, d.listing_id, d.status, d.note, d.target_price_eur, d.max_offer_eur, d.created_at, d.updated_at
+    sql: `SELECT d.user_id, d.listing_id, d.status, d.note, d.target_price_eur, d.max_offer_eur,
+                 d.price_eur_paid, d.fees_eur, d.price_sold_eur, d.sold_at,
+                 d.created_at, d.updated_at
           FROM deal_pipeline d
           WHERE d.user_id = ?
           ORDER BY d.updated_at DESC`,
@@ -1190,4 +1248,123 @@ export async function getFreshListingIds(since: string): Promise<Set<string>> {
     args: [since],
   });
   return new Set((res.rows as unknown as { id: string }[]).map((r) => r.id));
+}
+
+// ── Listing notes ──────────────────────────────────────────────────────────
+export async function setListingNote(userId: string, listingId: string, note: string): Promise<void> {
+  const client = await getClient();
+  if (!note.trim()) {
+    await client.execute({
+      sql: "DELETE FROM listing_notes WHERE user_id = ? AND listing_id = ?",
+      args: [userId, listingId],
+    });
+    return;
+  }
+  await client.execute({
+    sql: `INSERT INTO listing_notes (user_id, listing_id, note, updated_at)
+          VALUES (?, ?, ?, datetime('now'))
+          ON CONFLICT(user_id, listing_id) DO UPDATE SET note = excluded.note, updated_at = excluded.updated_at`,
+    args: [userId, listingId, note.trim()],
+  });
+}
+
+export async function getListingNote(userId: string, listingId: string): Promise<string | null> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: "SELECT note FROM listing_notes WHERE user_id = ? AND listing_id = ?",
+    args: [userId, listingId],
+  });
+  return (res.rows[0] as unknown as { note: string } | undefined)?.note ?? null;
+}
+
+// ── Saved searches ─────────────────────────────────────────────────────────
+export interface SavedSearch {
+  id: string;
+  user_id: string;
+  name: string;
+  params: string; // JSON string of URLSearchParams
+  created_at: string;
+}
+
+export async function getSavedSearches(userId: string): Promise<SavedSearch[]> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: "SELECT * FROM saved_searches WHERE user_id = ? ORDER BY created_at DESC",
+    args: [userId],
+  });
+  return res.rows as unknown as SavedSearch[];
+}
+
+export async function upsertSavedSearch(userId: string, id: string, name: string, params: string): Promise<void> {
+  const client = await getClient();
+  await client.execute({
+    sql: `INSERT INTO saved_searches (id, user_id, name, params) VALUES (?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET name = excluded.name, params = excluded.params`,
+    args: [id, userId, name, params],
+  });
+}
+
+export async function deleteSavedSearch(userId: string, id: string): Promise<void> {
+  const client = await getClient();
+  await client.execute({
+    sql: "DELETE FROM saved_searches WHERE id = ? AND user_id = ?",
+    args: [id, userId],
+  });
+}
+
+// ── ROI tracking ───────────────────────────────────────────────────────────
+export async function updateDealROI(
+  userId: string,
+  listingId: string,
+  data: { price_eur_paid?: number | null; fees_eur?: number; price_sold_eur?: number | null; sold_at?: string | null }
+): Promise<void> {
+  const client = await getClient();
+  await client.execute({
+    sql: `UPDATE deal_pipeline
+          SET price_eur_paid = COALESCE(?, price_eur_paid),
+              fees_eur = COALESCE(?, fees_eur),
+              price_sold_eur = COALESCE(?, price_sold_eur),
+              sold_at = COALESCE(?, sold_at),
+              updated_at = datetime('now')
+          WHERE user_id = ? AND listing_id = ?`,
+    args: [
+      data.price_eur_paid ?? null,
+      data.fees_eur ?? null,
+      data.price_sold_eur ?? null,
+      data.sold_at ?? null,
+      userId,
+      listingId,
+    ],
+  });
+}
+
+export interface ROIStats {
+  deals_won: number;
+  deals_sold: number;
+  total_invested_eur: number;
+  total_sold_eur: number;
+  total_fees_eur: number;
+  total_margin_eur: number;
+  avg_margin_eur: number;
+}
+
+export async function getROIStats(userId: string): Promise<ROIStats> {
+  const client = await getClient();
+  const res = await client.execute({
+    sql: `SELECT
+            COUNT(*) deals_won,
+            SUM(CASE WHEN price_sold_eur IS NOT NULL THEN 1 ELSE 0 END) deals_sold,
+            COALESCE(SUM(price_eur_paid), 0) total_invested_eur,
+            COALESCE(SUM(price_sold_eur), 0) total_sold_eur,
+            COALESCE(SUM(fees_eur), 0) total_fees_eur,
+            COALESCE(SUM(CASE WHEN price_sold_eur IS NOT NULL THEN price_sold_eur - price_eur_paid - fees_eur ELSE 0 END), 0) total_margin_eur,
+            COALESCE(AVG(CASE WHEN price_sold_eur IS NOT NULL THEN price_sold_eur - price_eur_paid - fees_eur ELSE NULL END), 0) avg_margin_eur
+          FROM deal_pipeline
+          WHERE user_id = ? AND status = 'won'`,
+    args: [userId],
+  });
+  return (res.rows[0] as unknown as ROIStats) ?? {
+    deals_won: 0, deals_sold: 0, total_invested_eur: 0,
+    total_sold_eur: 0, total_fees_eur: 0, total_margin_eur: 0, avg_margin_eur: 0,
+  };
 }

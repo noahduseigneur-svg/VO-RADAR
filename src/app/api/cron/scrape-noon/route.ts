@@ -15,14 +15,19 @@ export async function GET(req: Request) {
   const { runScrapers } = await import("@/lib/scrapers");
   const { sendDailyDigests } = await import("@/lib/digest");
 
+  const { processNewListingsForAlerts } = await import("@/lib/matcher");
+  const freshSince = new Date().toISOString();
   const batchLimit = Number(process.env.SCRAPE_BATCH_SIZE ?? 500);
   const [scrapeResult, digestResult] = await Promise.allSettled([
     runScrapers({ limit: batchLimit }),
     sendDailyDigests(12),
   ]);
 
+  const alertResult = await processNewListingsForAlerts(freshSince).catch(() => ({ hits: 0, emails_sent: 0 }));
+
   return NextResponse.json({
     scrape: scrapeResult.status === "fulfilled" ? scrapeResult.value : { error: String(scrapeResult.reason) },
     digest: digestResult.status === "fulfilled" ? digestResult.value : { error: String(digestResult.reason) },
+    alerts: alertResult,
   });
 }
