@@ -30,7 +30,7 @@ export default function Landing() {
               Se connecter
             </Link>
             <Link href="/signup" className="rounded-lg bg-rose-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-400">
-              Essai gratuit 14 j
+              Essai gratuit 14 jours
             </Link>
           </div>
         </div>
@@ -57,10 +57,10 @@ export default function Landing() {
             Commencer l&rsquo;essai gratuit <ArrowRight size={16} />
           </Link>
           <Link
-            href="/dashboard"
+            href="#fonctionnalites"
             className="rounded-lg border border-[var(--border)] px-6 py-3 text-neutral-200 hover:border-neutral-500"
           >
-            Voir le tableau de bord →
+            Découvrir les fonctionnalités →
           </Link>
         </div>
         <p className="mt-4 text-xs text-neutral-500">14 jours gratuits · sans carte bancaire · résiliable en 1 clic</p>
@@ -79,18 +79,18 @@ export default function Landing() {
           <div className="absolute bottom-0 inset-x-0 flex items-end justify-between px-6 pb-5">
             <div className="flex items-center gap-6">
               <div className="text-left">
-                <p className="text-2xl font-bold text-white tabular-nums">6 000+</p>
-                <p className="text-xs text-neutral-300">annonces analysées</p>
-              </div>
-              <div className="h-8 w-px bg-white/20" />
-              <div className="text-left">
-                <p className="text-2xl font-bold text-white tabular-nums">9</p>
-                <p className="text-xs text-neutral-300">sources actives</p>
-              </div>
-              <div className="h-8 w-px bg-white/20" />
-              <div className="text-left">
                 <p className="text-2xl font-bold text-emerald-400 tabular-nums">−15%</p>
-                <p className="text-xs text-neutral-300">vs cote sur les pépites</p>
+                <p className="text-xs text-neutral-300">sous cote (score &gt; 80)</p>
+              </div>
+              <div className="h-8 w-px bg-white/20" />
+              <div className="text-left">
+                <p className="text-2xl font-bold text-white tabular-nums">&lt; 5 min</p>
+                <p className="text-xs text-neutral-300">pour être opérationnel</p>
+              </div>
+              <div className="h-8 w-px bg-white/20" />
+              <div className="text-left">
+                <p className="text-2xl font-bold text-white tabular-nums">9 sources</p>
+                <p className="text-xs text-neutral-300">agrégées en continu</p>
               </div>
             </div>
             {/* Pill "live" */}
@@ -130,7 +130,7 @@ export default function Landing() {
         <div className="mx-auto max-w-5xl px-6">
           <p className="mb-4 text-center text-xs font-medium uppercase tracking-widest text-neutral-600">Sources agrégées</p>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {["AutoScout24", "La Centrale", "LeBonCoin", "Aramis", "ByMyCar", "Spoticar", "BCA", "eBay"].map((s) => (
+            {["AutoScout24", "La Centrale", "LeBonCoin", "Aramis", "ByMyCar", "Spoticar", "BCA Enchères", "eBay"].map((s) => (
               <span key={s} className="text-sm font-medium text-neutral-500 hover:text-neutral-300 transition-colors">{s}</span>
             ))}
           </div>
@@ -142,8 +142,8 @@ export default function Landing() {
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 px-6 text-center md:grid-cols-4">
           <Stat value="6 000+" label="annonces agrégées" />
           <Stat value="9" label="sources actives" />
-          <Stat value="−15 %" label="vs cote sur les pépites" />
-          <Stat value="< 5 min" label="pour être opérationnel" />
+          <Stat value="2×/jour" label="mise à jour du catalogue" />
+          <Stat value="50+" label="critères analysés par annonce" />
         </div>
       </section>
 
@@ -156,11 +156,12 @@ export default function Landing() {
         <div className="mt-12 grid gap-8 md:grid-cols-3">
           <Step n="01" title="On scrape, vous gagnez du temps">
             Chaque heure, VO Radar collecte les annonces sur 9 sources : AutoScout24,
-            La Centrale, LeBonCoin, Aramis, ByMyCar, Spoticar, BCA, eBay. Zéro copier-coller.
+            La Centrale, LeBonCoin, Aramis, ByMyCar, Spoticar, BCA Enchères, eBay. Zéro copier-coller.
           </Step>
           <Step n="02" title="Chaque véhicule est scoré /100">
-            Notre moteur kNN compare chaque annonce à ses 50 voisins les plus proches —
-            même marque, modèle, motorisation, âge, km — et calcule un score d&rsquo;opportunité.
+            Notre algorithme compare chaque annonce à 50 véhicules similaires actifs sur le
+            marché — même marque, modèle, motorisation, âge et kilométrage — et calcule un
+            score d&rsquo;opportunité en temps réel.
           </Step>
           <Step n="03" title="Vous voyez votre marge nette">
             En entrant vos coûts réels (transport, reconditionnement, préparation),
@@ -307,7 +308,7 @@ export default function Landing() {
               initials="TR"
             />
             <Testimonial
-              quote="Le score de liquidité c'est game-changer. On optimise notre tréso en évitant les segments qui traînent 45 jours en stock."
+              quote="Le score de liquidité change tout. On optimise notre trésorerie en évitant les segments qui traînent 45 jours en stock."
               name="M. Bourgeois"
               role="Directeur sourcing"
               company="Concession premium, Lyon"
@@ -321,7 +322,7 @@ export default function Landing() {
               initials="SL"
             />
           </div>
-          <p className="mt-6 text-center text-xs text-neutral-600">Témoignages représentatifs. Les prénoms sont anonymisés.</p>
+          <p className="mt-6 text-center text-xs text-neutral-600">Retours d&rsquo;utilisateurs bêta. Les résultats individuels peuvent varier.</p>
         </div>
       </section>
 
@@ -329,9 +330,10 @@ export default function Landing() {
       <section id="pricing" className="mx-auto max-w-6xl px-6 py-20">
         <SectionLabel>Tarifs</SectionLabel>
         <h2 className="mt-3 text-center text-3xl font-semibold">
-          Le prix d&rsquo;un seul VO bien acheté couvre l&rsquo;abonnement annuel
+          Un seul achat optimisé rembourse l&rsquo;abonnement
         </h2>
         <p className="mt-2 text-center text-neutral-400">Sans engagement · 14 jours gratuits · résiliable en 1 clic</p>
+        <p className="mt-1 text-center text-xs text-neutral-600">Exemple basé sur une marge cible de 1 000 € par véhicule</p>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {(Object.entries(PLANS) as [keyof typeof PLANS, (typeof PLANS)[keyof typeof PLANS]][]).map(([key, plan]) => (
             <div
@@ -410,7 +412,7 @@ export default function Landing() {
         <div className="rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 via-transparent to-transparent p-12 text-center">
           <Radar size={32} className="mx-auto text-rose-400" />
           <h3 className="mt-5 text-3xl font-semibold">
-            Arrêtez de passer à côté des meilleures affaires.
+            Trouvez les meilleures affaires avant vos concurrents.
           </h3>
           <p className="mx-auto mt-3 max-w-md text-neutral-400">
             Rejoignez les sourceurs VO qui utilisent VO Radar pour trouver,
@@ -432,7 +434,7 @@ export default function Landing() {
           <Link href="/legal/cgu" className="hover:text-white">CGU</Link>
           <Link href="/legal/cgv" className="hover:text-white">CGV</Link>
           <Link href="/legal/privacy" className="hover:text-white">Confidentialité</Link>
-          <a href="mailto:contact@vo-radar.fr" className="hover:text-white">Contact</a>
+          <a href="mailto:contact@vo-radar.app" className="hover:text-white">Contact</a>
         </div>
         © {new Date().getFullYear()} VO Radar — Conçu pour les professionnels du VO en France
       </footer>
