@@ -191,7 +191,16 @@ export function yearFromDate(date: string | null | undefined): number | null {
   const m = date.match(/(\d{4})/);
   if (!m) return null;
   const y = Number(m[1]);
-  return y >= 1980 && y <= 2030 ? y : null;
+  return safeYear(y);
+}
+
+/** Valide qu'une année est réaliste pour un véhicule d'occasion.
+ *  Retourne null si l'année est hors plage — JAMAIS de fallback sur l'année courante.
+ */
+export function safeYear(y: number | null | undefined): number | null {
+  if (!y) return null;
+  const max = new Date().getFullYear() + 1; // model year N+1 en précommande possible
+  return y >= 1980 && y <= max ? y : null;
 }
 
 export function mapFuel(raw: string | null): "essence" | "diesel" | "hybride" | "electrique" | "gpl" {

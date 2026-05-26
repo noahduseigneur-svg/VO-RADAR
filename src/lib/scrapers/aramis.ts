@@ -34,7 +34,7 @@ function adapter(node: JsonLdCar, url: string): RawListing | null {
   const fuel = mapFuel(car.fuelType ?? null);
   const trans = strField(car.vehicleTransmission);
   const gearbox = mapGearbox(trans);
-  const year = yearFromDate(car.dateVehicleFirstRegistered) ?? yearFromDate(car.productionDate) ?? new Date().getFullYear();
+  const year = yearFromDate(car.dateVehicleFirstRegistered) ?? yearFromDate(car.productionDate) ?? 2015;
 
   return {
     id: `aramis-${sku}`,

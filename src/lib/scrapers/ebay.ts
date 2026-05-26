@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { mapFuel, mapGearbox, yearFromDate } from "./json-ld-dealer";
+import { mapFuel, mapGearbox, yearFromDate, safeYear } from "./json-ld-dealer";
 
 // eBay Motors via l'API officielle Browse.
 //   Doc : https://developer.ebay.com/api-docs/buy/browse/overview.html
@@ -103,7 +103,9 @@ function adapt(item: EbayItemSummary, marketplace: string): RawListing | null {
   const brand = specs["marque"] ?? specs["brand"] ?? guessBrandFromTitle(item.title) ?? "Inconnu";
   const model = specs["modèle"] ?? specs["model"] ?? guessModelFromTitle(item.title, brand) ?? "Inconnu";
   const yearStr = specs["année"] ?? specs["year"] ?? specs["année-modèle"];
-  const year = yearStr ? Number(String(yearStr).match(/\d{4}/)?.[0]) || new Date().getFullYear() : yearFromDate(item.itemCreationDate) ?? new Date().getFullYear();
+  // Ne jamais utiliser itemCreationDate comme année véhicule — c'est la date de mise en ligne
+  const yearParsed = yearStr ? Number(String(yearStr).match(/\d{4}/)?.[0]) : null;
+  const year = safeYear(yearParsed) ?? 2015;
   const mileage = parseKm(specs["kilométrage"] ?? specs["mileage"] ?? "0");
   const fuel = mapFuel(specs["carburant"] ?? specs["fuel"] ?? specs["fuel type"] ?? null);
   const gearbox = mapGearbox(specs["boîte de vitesses"] ?? specs["transmission"] ?? null);

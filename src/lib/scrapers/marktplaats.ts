@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { sleep, mapFuel, mapGearbox, shuffle } from "./json-ld-dealer";
+import { sleep, mapFuel, mapGearbox, shuffle, safeYear } from "./json-ld-dealer";
 
 // Marktplaats.nl — 1er portail petites annonces des Pays-Bas (Adevinta).
 // Très similaire au LeBonCoin en termes de structure HTML/__NEXT_DATA__.
@@ -117,8 +117,9 @@ function parseAd(ad: MpAd, fallbackBrand: string, fallbackModel: string): RawLis
   const model = attrByKey(attrs, "model") ?? fallbackModel;
 
   const yearStr = attrByKey(attrs, "constructionYear") ?? attrByKey(attrs, "bouwjaar") ?? attrByKey(attrs, "registrationYear");
-  const year = yearStr ? (Number(yearStr.slice(0, 4)) || 0) : 0;
-  if (!year || year < 1990) return null;
+  const yearRaw = yearStr ? Number(yearStr.match(/(\d{4})/)?.[1]) : null;
+  const year = safeYear(yearRaw);
+  if (!year) return null; // rejeter si année indéterminable
 
   const mileageStr = attrByKey(attrs, "mileage") ?? attrByKey(attrs, "km") ?? attrByKey(attrs, "kilometerstand");
   const mileage = numVal(mileageStr) ?? 0;

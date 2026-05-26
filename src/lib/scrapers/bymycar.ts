@@ -53,7 +53,7 @@ function adapter(node: JsonLdCar, url: string): RawListing | null {
   const fuel = mapFuel(car.fuelType ?? null);
   const trans = strField(car.vehicleTransmission);
   const gearbox = mapGearbox(trans);
-  const year = yearFromDate(car.dateVehicleFirstRegistered) ?? yearFromDate(car.productionDate) ?? deriveYearFromUrl(url) ?? new Date().getFullYear();
+  const year = yearFromDate(car.dateVehicleFirstRegistered) ?? yearFromDate(car.productionDate) ?? deriveYearFromUrl(url) ?? 2015;
 
   // Power : essaie additionalProperty "Puissance DIN" en ch
   let power: number | null = null;

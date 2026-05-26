@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { sleep, mapFuel, mapGearbox, shuffle } from "./json-ld-dealer";
+import { sleep, mapFuel, mapGearbox, shuffle, safeYear } from "./json-ld-dealer";
 
 // La Centrale — principal portail B2C/B2B VO en France.
 // Stratégie : GET /listing?makesModelsCommercialNames=BRAND:MODEL → __NEXT_DATA__.
@@ -91,7 +91,7 @@ function parseVehicle(v: LcVehicle): RawListing | null {
   if (!brand || !model) return null;
 
   const version = str(v.version ?? v.versionLabel ?? v.finition ?? v.variant) ?? null;
-  const year = num(v.year ?? v.firstRegistrationYear ?? v.registrationYear ?? v.annee) ?? new Date().getFullYear();
+  const year = safeYear(num(v.year ?? v.firstRegistrationYear ?? v.registrationYear ?? v.annee)) ?? 2015;
   const mileage = num(v.mileage ?? v.km ?? v.mileageLabel ?? v.kilometrage) ?? 0;
   const price = extractPrice(v);
   if (!price || price < 500) return null;

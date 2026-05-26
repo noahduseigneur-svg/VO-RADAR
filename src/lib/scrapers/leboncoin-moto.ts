@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { sleep, mapFuel, mapGearbox, shuffle } from "./json-ld-dealer";
+import { sleep, mapFuel, mapGearbox, shuffle, safeYear } from "./json-ld-dealer";
 import type { MotoType } from "../types";
 
 // LeBonCoin — section motos/scooters/quad.
@@ -135,7 +135,8 @@ function parseAd(ad: LbcAd): RawListing | null {
 
   // Attributes
   const yearStr = attrVal(attrs, "regdate");
-  const year = yearStr ? (Number(yearStr.slice(0, 4)) || new Date().getFullYear()) : new Date().getFullYear();
+  const yearRaw = yearStr ? Number(yearStr.match(/(\d{4})/)?.[1]) : null;
+  const year = safeYear(yearRaw) ?? 2015;
   const mileage = attrNum(attrs, "mileage") ?? 0;
   const fuelRaw = attrVal(attrs, "fuel");
   const gearboxRaw = attrVal(attrs, "gearbox");

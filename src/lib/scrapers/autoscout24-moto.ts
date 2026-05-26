@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { sleep, mapFuel, mapGearbox } from "./json-ld-dealer";
+import { sleep, mapFuel, mapGearbox, safeYear } from "./json-ld-dealer";
 import type { MotoType } from "../types";
 
 // AutoScout24 — section motos (vehicle_type=M).
@@ -106,7 +106,7 @@ function parseAd(ad: As24Ad, make: string, model: string): RawListing | null {
 
   // Year: may be in vehicle.registrationDate or vehicle.firstRegistrationYear
   const yearRaw = vehicle.firstRegistrationYear ?? vehicle.registrationYear ?? vehicle.year ?? ad.year;
-  const year = num(yearRaw) ?? new Date().getFullYear();
+  const year = safeYear(num(yearRaw)) ?? 2015;
 
   // Mileage: formatted string like "32 572 km" — strip non-digits
   const mileageRaw = str(vehicle.mileageInKm ?? vehicle.mileage ?? ad.mileage);

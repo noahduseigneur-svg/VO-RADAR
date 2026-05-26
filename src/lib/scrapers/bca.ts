@@ -1,6 +1,6 @@
 import type { Scraper, RawListing } from "./types";
 import type { BodyType } from "../types";
-import { sleep, mapFuel, mapGearbox } from "./json-ld-dealer";
+import { sleep, mapFuel, mapGearbox, safeYear } from "./json-ld-dealer";
 
 // BCA (British Car Auctions) France — principal portail d'enchères B2B pour les
 // professionnels VO. Requiert un compte dealer actif.
@@ -162,16 +162,16 @@ function parseNum(v: number | string | undefined): number | null {
 
 function extractYear(v: BcaVehicle): number {
   if (v.registrationYear) {
-    const y = Number(v.registrationYear);
-    if (y > 1990 && y <= new Date().getFullYear() + 1) return y;
+    const y = safeYear(Number(v.registrationYear));
+    if (y) return y;
   }
   for (const d of [v.registrationDate, v.firstRegistrationDate]) {
     if (d) {
-      const y = Number(d.slice(0, 4));
-      if (y > 1990 && y <= new Date().getFullYear() + 1) return y;
+      const y = safeYear(Number(d.match(/(\d{4})/)?.[1]));
+      if (y) return y;
     }
   }
-  return new Date().getFullYear();
+  return 2015; // fallback neutre — jamais l'année courante
 }
 
 function extractPrice(v: BcaVehicle): number {

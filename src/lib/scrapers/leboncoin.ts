@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { sleep, mapFuel, mapGearbox, shuffle } from "./json-ld-dealer";
+import { sleep, mapFuel, mapGearbox, shuffle, safeYear } from "./json-ld-dealer";
 
 // LeBonCoin — plus grand portail VO en France (particuliers + pros).
 // Stratégie : GET /voitures/offres/?brand=X&model=Y → __NEXT_DATA__ (ads[]).
@@ -92,7 +92,9 @@ function parseAd(ad: LbcAd): RawListing | null {
 
   // Attributes
   const yearStr = attrVal(attrs, "regdate");
-  const year = yearStr ? (Number(yearStr.slice(0, 4)) || new Date().getFullYear()) : new Date().getFullYear();
+  // regdate peut être "2006-01-01", "2006", "01/2006" — extraire le premier groupe de 4 chiffres
+  const yearRaw = yearStr ? Number(yearStr.match(/(\d{4})/)?.[1]) : null;
+  const year = safeYear(yearRaw) ?? 2015; // fallback neutre si absent (jamais l'année courante)
   const mileage = attrNum(attrs, "mileage") ?? 0;
   const fuelRaw = attrVal(attrs, "fuel");
   const gearboxRaw = attrVal(attrs, "gearbox");

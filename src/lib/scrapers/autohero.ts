@@ -1,5 +1,5 @@
 import type { Scraper, RawListing } from "./types";
-import { sleep } from "./json-ld-dealer";
+import { sleep, safeYear } from "./json-ld-dealer";
 
 // AutoHero France — ex-leasing cars, ~3500 annonces, no anti-bot
 // URL: https://www.autohero.com/fr/search/?sort=PRICE_ASC&page=N
@@ -123,7 +123,9 @@ function extractCards(html: string): CardData[] {
     // Strip tags to extract bullet specs: • 2015 • Essence • 102 340 km
     const text = chunk.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
-    const yearM  = text.match(/•\s*(20[0-2]\d|199\d)\s*•/);
+    // Cherche TOUS les candidats année dans les bullets puis garde le plus ancien (voiture d'occase = pas le futur)
+    const yearAll = [...text.matchAll(/•\s*((?:20[0-2]\d|199\d))\s*•/g)].map((m) => Number(m[1]));
+    const yearM = yearAll.filter((y) => safeYear(y) !== null).sort((a, b) => a - b)[0]; // le plus ancien = vrai millésime
     const fuelM  = text.match(/•\s*(Essence|Diesel|Électrique|Hybride[\w\s]*|GPL)\s*•/i);
     const kmM    = text.match(/•\s*(\d[\d\s]*\d|\d+)\s*km/i);
     const gearM  = text.match(/\b(Manuelle|Automatique|DCT|CVT|Tiptronic)\b/i);
@@ -134,7 +136,7 @@ function extractCards(html: string): CardData[] {
       uuid, slug, title,
       version: version || null,
       priceRaw,
-      yearRaw:    yearM ? yearM[1]  : null,
+      yearRaw:    yearM ? String(yearM) : null,
       mileageRaw: kmM   ? kmM[1]   : null,
       fuelRaw:    fuelM ? fuelM[1].trim() : null,
       gearboxRaw: gearM ? gearM[1] : null,
@@ -150,7 +152,7 @@ function cardToRaw(card: CardData): RawListing | null {
   const price = num(card.priceRaw ?? "");
   if (!price || price < 500 || price > 300_000) return null;
 
-  const year = num(card.yearRaw ?? "") ?? new Date().getFullYear() - 3;
+  const year = safeYear(num(card.yearRaw ?? "")) ?? 2015;
   const mileage = num(card.mileageRaw ?? "") ?? 0;
 
   // Brand/model from aria-label title (e.g. "Citroen C1", "Renault Clio")

@@ -62,7 +62,7 @@ function adapter(node: JsonLdCar, url: string): RawListing | null {
   const mileage = numField(car.mileageFromOdometer) ?? 0;
   const fuel = mapFuel(car.fuelType ?? null);
   const gearbox = mapGearbox(strField(car.vehicleTransmission));
-  const year = yearFromDate(car.dateVehicleFirstRegistered ?? car.productionDate) ?? new Date().getFullYear();
+  const year = yearFromDate(car.dateVehicleFirstRegistered ?? car.productionDate) ?? 2015;
   const power = extractPower(car.vehicleEngine);
 
   return {

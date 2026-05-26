@@ -52,7 +52,7 @@ export function buildUniversalAdapter(sourceName: string) {
     const fuel = mapFuel(car.fuelType ?? null);
     const trans = strField(car.vehicleTransmission);
     const gearbox = mapGearbox(trans);
-    const year = yearFromDate(car.dateVehicleFirstRegistered) ?? yearFromDate(car.productionDate) ?? yearFromDate(car.releaseDate) ?? deriveYearFromUrl(url) ?? new Date().getFullYear();
+    const year = yearFromDate(car.dateVehicleFirstRegistered) ?? yearFromDate(car.productionDate) ?? yearFromDate(car.releaseDate) ?? deriveYearFromUrl(url) ?? 2015;
 
     let power: number | null = null;
     if (engineDesignation) {
